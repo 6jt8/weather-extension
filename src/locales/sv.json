@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Laddar väderdata...",
+    "searchPlaceholder":  "Ange plats...",
+    "search":  "Sök",
+    "saveFavorite":  "Spara som favorit",
+    "forecast":  "Prognos",
+    "searchHint":  "Sök väder för att se prognos",
+    "favorites":  "Favoriter",
+    "noFavorites":  "Inga favoriter sparade",
+    "removeFavorite":  "Ta bort favorit",
+    "enterLocation":  "Vänligen ange en plats.",
+    "loadingForecast":  "Laddar prognos...",
+    "notFound":  "Platsen hittades inte. Försök igen.",
+    "fetchError":  "Fel vid hämtning av väderdata.",
+    "forecastUnavailable":  "Prognos ej tillgänglig",
+    "connectionError":  "Anslutningsfel. Kontrollera internetanslutningen.",
+    "noForecast":  "Ingen prognos tillgänglig",
+    "feelsLike":  "Känns som",
+    "lastUpdated":  "Senast uppdaterad",
+    "humidity":  "Luftfuktighet",
+    "wind":  "Vind",
+    "today":  "Idag"
+}

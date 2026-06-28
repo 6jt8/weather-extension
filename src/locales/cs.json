@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Načítání dat o počasí...",
+    "searchPlaceholder":  "Zadejte místo...",
+    "search":  "Hledat",
+    "saveFavorite":  "Uloit jako oblben",
+    "forecast":  "Pedpov",
+    "searchHint":  "Vyhledejte počasí pro zobrazení předpovědi",
+    "favorites":  "Oblben",
+    "noFavorites":  "Žádné uložené oblíbené",
+    "removeFavorite":  "Odebrat oblíbené",
+    "enterLocation":  "Zadejte prosím místo.",
+    "loadingForecast":  "Načítání předpovědi...",
+    "notFound":  "Místo nenalezeno. Zkuste to znovu.",
+    "fetchError":  "Chyba při načítání dat o počasí.",
+    "forecastUnavailable":  "Předpověď není k dispozici",
+    "connectionError":  "Chyba připojení. Zkontrolujte připojení k internetu.",
+    "noForecast":  "Žádná předpověď není k dispozici",
+    "feelsLike":  "Pocitová teplota",
+    "lastUpdated":  "Poslední aktualizace",
+    "humidity":  "Vlhkost",
+    "wind":  "Vítr",
+    "today":  "Dnes"
+}

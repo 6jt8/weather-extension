@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "جارٍ تحميل بيانات الطقس...",
+    "searchPlaceholder":  "أدخل الموقع...",
+    "search":  "بحث",
+    "saveFavorite":  "",
+    "forecast":  "",
+    "searchHint":  "ابحث عن الطقس لرؤية التوقعات",
+    "favorites":  "",
+    "noFavorites":  "لا توجد مفضلات محفوظة",
+    "removeFavorite":  "إزالة من المفضلات",
+    "enterLocation":  "يرجى إدخال الموقع.",
+    "loadingForecast":  "جارٍ تحميل التوقعات...",
+    "notFound":  "الموقع غير موجود. حاول مرة أخرى.",
+    "fetchError":  "خطأ في جلب بيانات الطقس.",
+    "forecastUnavailable":  "التوقعات غير متوفرة",
+    "connectionError":  "خطأ في الاتصال. تحقق من اتصالك بالإنترنت.",
+    "noForecast":  "لا توجد توقعات متاحة",
+    "feelsLike":  "يشعر كأنه",
+    "lastUpdated":  "آخر تحديث",
+    "humidity":  "الرطوبة",
+    "wind":  "الرياح",
+    "today":  "اليوم"
+}

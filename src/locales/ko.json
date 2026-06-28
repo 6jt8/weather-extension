@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "날씨 데이터 로딩 중...",
+    "searchPlaceholder":  "위치 입력...",
+    "search":  "검색",
+    "saveFavorite":  "",
+    "forecast":  "",
+    "searchHint":  "날씨를 검색하여 예보 보기",
+    "favorites":  "",
+    "noFavorites":  "저장된 즐겨찾기 없음",
+    "removeFavorite":  "즐겨찾기 삭제",
+    "enterLocation":  "위치를 입력하세요.",
+    "loadingForecast":  "예보 로딩 중...",
+    "notFound":  "위치를 찾을 수 없습니다. 다시 시도하세요.",
+    "fetchError":  "날씨 데이터 가져오기 오류.",
+    "forecastUnavailable":  "예보를 사용할 수 없음",
+    "connectionError":  "연결 오류. 인터넷 연결을 확인하세요.",
+    "noForecast":  "사용 가능한 예보 없음",
+    "feelsLike":  "체감",
+    "lastUpdated":  "마지막 업데이트",
+    "humidity":  "습도",
+    "wind":  "바람",
+    "today":  "오늘"
+}

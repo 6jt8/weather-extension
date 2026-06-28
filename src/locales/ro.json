@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Se încarcă datele meteo...",
+    "searchPlaceholder":  "Introduceți locația...",
+    "search":  "Căutare",
+    "saveFavorite":  "Salveaz ca favorit",
+    "forecast":  "Prognoz",
+    "searchHint":  "Căutați vremea pentru a vedea prognoza",
+    "favorites":  "Favorite",
+    "noFavorites":  "Niciun favorit salvat",
+    "removeFavorite":  "Elimină favoritul",
+    "enterLocation":  "Introduceți o locație.",
+    "loadingForecast":  "Se încarcă prognoza...",
+    "notFound":  "Locația nu a fost găsită. Încercați din nou.",
+    "fetchError":  "Eroare la preluarea datelor meteo.",
+    "forecastUnavailable":  "Prognoza nu este disponibilă",
+    "connectionError":  "Eroare de conexiune. Verificați conexiunea la internet.",
+    "noForecast":  "Nicio prognoză disponibilă",
+    "feelsLike":  "Se simte",
+    "lastUpdated":  "Ultima actualizare",
+    "humidity":  "Umiditate",
+    "wind":  "Vânt",
+    "today":  "Azi"
+}

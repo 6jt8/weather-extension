@@ -1,0 +1,12 @@
+{
+  "name": "weather-extension",
+  "version": "1.1.0",
+  "description": "Chrome & Firefox extension for weather with 7-day forecast and 25 languages",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "sharp": "^0.35.2"
+  }
+}

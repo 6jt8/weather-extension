@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Extension</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Weather</h1>
+      <div class="header-controls">
+        <select id="languageSelect" class="language-select" title="Select language">
+          <option value="en">EN</option>
+          <option value="de">DE</option>
+          <option value="fr">FR</option>
+          <option value="es">ES</option>
+          <option value="it">IT</option>
+          <option value="pt">PT</option>
+          <option value="nl">NL</option>
+          <option value="pl">PL</option>
+          <option value="ru">RU</option>
+          <option value="uk">UK</option>
+          <option value="ja">JA</option>
+          <option value="ko">KO</option>
+          <option value="zh">ZH</option>
+          <option value="ar">AR</option>
+          <option value="hi">HI</option>
+          <option value="tr">TR</option>
+          <option value="sv">SV</option>
+          <option value="no">NO</option>
+          <option value="da">DA</option>
+          <option value="fi">FI</option>
+          <option value="el">EL</option>
+          <option value="cs">CS</option>
+          <option value="ro">RO</option>
+          <option value="hu">HU</option>
+        </select>
+        <button id="unitToggle" class="unit-toggle" title="Toggle unit">°C</button>
+      </div>
+    </header>
+
+    <div class="search-box">
+      <input type="text" id="locationInput" placeholder="Enter location..." autocomplete="off">
+      <button id="clearInputBtn" class="clear-input-btn" title="Clear">&times;</button>
+      <button id="searchBtn" class="search-btn">Search</button>
+    </div>
+
+    <div id="currentLocation" class="current-location">
+      <span class="location-icon">📍</span>
+      <span id="currentLocationName">Detecting...</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="weather">Weather</button>
+      <button class="tab-btn" data-tab="forecast">Forecast</button>
+      <button class="tab-btn" data-tab="favorites">Favorites</button>
+    </div>
+
+    <div id="weatherTab" class="tab-content active">
+      <div id="weatherDisplay" class="weather-display">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p data-i18n="loading">Loading weather data...</p>
+        </div>
+      </div>
+      <button id="saveFavoriteBtn" class="save-btn" disabled><span class="btn-icon">⭐</span> <span data-i18n="saveFavorite">Save as favorite</span></button>
+    </div>
+
+    <div id="forecastTab" class="tab-content">
+      <div id="forecastDisplay" class="forecast-display">
+        <p class="forecast-hint" data-i18n="searchHint">Search weather to see forecast</p>
+      </div>
+    </div>
+
+    <div id="favoritesTab" class="tab-content">
+      <ul id="favoritesList" class="favorites-list">
+        <li class="forecast-hint" data-i18n="noFavorites">No favorites saved</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalDate">Details</h3>
+        <button id="modalClose" class="modal-close">&times;</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

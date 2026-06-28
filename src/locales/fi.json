@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Ladataan säätietoja...",
+    "searchPlaceholder":  "Anna sijainti...",
+    "search":  "Etsi",
+    "saveFavorite":  "Tallenna suosikiksi",
+    "forecast":  "Ennuste",
+    "searchHint":  "Etsi säätä nähdäksesi ennusteen",
+    "favorites":  "Suosikit",
+    "noFavorites":  "Ei tallennettuja suosikkeja",
+    "removeFavorite":  "Poista suosikki",
+    "enterLocation":  "Anna sijainti.",
+    "loadingForecast":  "Ladataan ennustetta...",
+    "notFound":  "Sijaintia ei löytynyt. Yritä uudelleen.",
+    "fetchError":  "Virhe säätietojen haussa.",
+    "forecastUnavailable":  "Ennuste ei ole saatavilla",
+    "connectionError":  "Yhteysvirhe. Tarkista internet-yhteys.",
+    "noForecast":  "Ennustetta ei saatavilla",
+    "feelsLike":  "Tuntuu kuin",
+    "lastUpdated":  "Päivitetty viimeksi",
+    "humidity":  "Kosteus",
+    "wind":  "Tuuli",
+    "today":  "Tänään"
+}

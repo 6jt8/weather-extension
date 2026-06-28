@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cloudRain" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e2e8f0"/>
+      <stop offset="100%" style="stop-color:#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="28" rx="22" ry="14" fill="url(#cloudRain)"/>
+  <g fill="#60a5fa">
+    <ellipse cx="22" cy="36" rx="3" ry="4"/>
+    <ellipse cx="32" cy="38" rx="3" ry="4"/>
+    <ellipse cx="42" cy="36" rx="3" ry="4"/>
+  </g>
+  <g fill="#3b8f60" stroke="#2d7a50" stroke-width="0.5">
+    <ellipse cx="22" cy="50" rx="2" ry="5"/>
+    <ellipse cx="32" cy="52" rx="2" ry="5"/>
+    <ellipse cx="42" cy="50" rx="2" ry="5"/>
+  </g>
+</svg>

@@ -1,0 +1,142 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.0)'
+        required: true
+        type: string
+      target:
+        description: 'Build target'
+        required: true
+        type: choice
+        default: 'chrome'
+        options:
+          - chrome
+          - firefox
+          - both
+      create_release:
+        description: 'Create GitHub release'
+        required: true
+        type: boolean
+        default: true
+      release_name:
+        description: 'Release name (optional, defaults to "Release vX.Y.Z")'
+        required: false
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate version format
+        run: |
+          if [[ ! "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format. Expected: X.Y.Z (e.g. 1.2.0)"
+            exit 1
+          fi
+          echo "Version: ${{ github.event.inputs.version }}"
+
+      - name: Update version in files
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          cd src
+          if [ -f manifest.json ]; then
+            cat manifest.json | jq --arg v "$VERSION" '.version = $v' > manifest.tmp.json
+            mv manifest.tmp.json manifest.json
+          fi
+          cd ..
+
+          if [ -f package.json ]; then
+            cat package.json | jq --arg v "$VERSION" '.version = $v' > package.tmp.json
+            mv package.tmp.json package.json
+          fi
+
+          echo "Version set to $VERSION"
+
+      - name: Build release package
+        run: |
+          echo "Building for target: ${{ github.event.inputs.target }}"
+
+          mkdir -p release
+
+          if [ "${{ github.event.inputs.target }}" = "chrome" ] || [ "${{ github.event.inputs.target }}" = "both" ]; then
+            echo "Building Chrome release..."
+            node build.js
+            cd release/weather_extension && zip -r ../../release/weather-extension-chrome-v${{ github.event.inputs.version }}.zip . && cd ../..
+            echo "Chrome ZIP created"
+          fi
+
+          if [ "${{ github.event.inputs.target }}" = "firefox" ] || [ "${{ github.event.inputs.target }}" = "both" ]; then
+            echo "Building Firefox release..."
+            mkdir -p release/firefox
+            cp -r src/* release/firefox/
+
+            cd release/firefox
+            cat manifest.json | jq '
+              .manifest_version = 2 |
+              .browser_action = .action |
+              del(.action) |
+              .permissions += .host_permissions |
+              del(.host_permissions) |
+              .browser_specific_settings = {"gecko": {"id": "weather-extension@horror69dev", "strict_min_version": "109.0"}}
+            ' > manifest.firefox.json
+            mv manifest.firefox.json manifest.json
+            rm -f config.js config.example.js
+
+            zip -r ../../release/weather-extension-firefox-v${{ github.event.inputs.version }}.zip .
+            cd ../..
+            echo "Firefox ZIP created"
+          fi
+
+          echo "Build results:"
+          ls -la release/*.zip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: release/*.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.event.inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', github.event.inputs.version) }}
+          body: |
+            ## Weather Extension v${{ github.event.inputs.version }}
+
+            ### Release Info
+            - **Version:** ${{ github.event.inputs.version }}
+            - **Target:** ${{ github.event.inputs.target }}
+
+            ### Packages
+            ${{ github.event.inputs.target == 'chrome' && '- Chrome Extension (.zip)' || '' }}
+            ${{ github.event.inputs.target == 'firefox' && '- Firefox Extension (.zip)' || '' }}
+            ${{ github.event.inputs.target == 'both' && '- Chrome Extension (.zip)\n- Firefox Extension (.zip)' || '' }}
+
+            ### Installation
+            1. Download and unpack the ZIP
+            2. Chrome: `chrome://extensions/` -> Developer mode -> Load unpacked
+            3. Firefox: `about:debugging#/runtime/this-firefox` -> Load Temporary Add-on -> select `manifest.json`
+
+            ---
+            Released on ${{ github.event.inputs.version }}
+          files: release/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
