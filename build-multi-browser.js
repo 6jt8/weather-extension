@@ -151,7 +151,7 @@ function generateManifest(base, browser) {
       manifest.manifest_version = 3;
       manifest.browser_specific_settings = {
         safari: {
-          minimum_version": "14"
+          "minimum_version": "14"
         }
       };
       break;
