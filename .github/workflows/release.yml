@@ -310,7 +310,7 @@ jobs:
 
             ---
             *Dieser Release wurde automatisch generiert.*
-          files: release/**
+          files: release/*.{zip,xpi}
           draft: ${{ env.DRAFT }}
           prerelease: ${{ env.PRERELEASE }}
         env:
