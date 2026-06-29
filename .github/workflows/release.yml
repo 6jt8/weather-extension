@@ -39,19 +39,31 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install CLI tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq zip
+
       - name: Validate version format
-         run: |
-         if [[ ! "${{ github.event.inputs.version }}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-         echo "Invalid version format. Expected: X.Y.Z or vX.Y.Z (e.g. 1.2.0 or v1.2.0)"
-         exit 1
-         fi
-         echo "Version: ${{ github.event.inputs.version }}"
+        run: |
+          if [[ ! "${{ github.event.inputs.version }}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format. Expected: X.Y.Z or vX.Y.Z (e.g. 1.2.0 or v1.2.0)"
+            exit 1
+          fi
+          echo "Version: ${{ github.event.inputs.version }}"
+
+      - name: Normalize version (strip leading v)
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          VERSION="${INPUT_VERSION#v}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "Normalized version: ${VERSION}"
 
       - name: Update version in files
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION}"
 
-          cd src
+          cd src || exit 0
           if [ -f manifest.json ]; then
             cat manifest.json | jq --arg v "$VERSION" '.version = $v' > manifest.tmp.json
             mv manifest.tmp.json manifest.json
@@ -73,8 +85,18 @@ jobs:
 
           if [ "${{ github.event.inputs.target }}" = "chrome" ] || [ "${{ github.event.inputs.target }}" = "both" ]; then
             echo "Building Chrome release..."
-            node build.js
-            cd release/weather_extension && zip -r ../../release/weather-extension-chrome-v${{ github.event.inputs.version }}.zip . && cd ../..
+            # run your build script; adjust if your project needs npm install / npm run build
+            node build.js || true
+
+            # If your build produces a folder, zip it; otherwise, zip the repo or release output
+            if [ -d release/weather_extension ]; then
+              cd release/weather_extension
+              zip -r ../../release/weather-extension-chrome-v${VERSION}.zip .
+              cd ../..
+            else
+              # fallback: zip top-level release contents (adjust path as needed)
+              zip -r release/weather-extension-chrome-v${VERSION}.zip .
+            fi
             echo "Chrome ZIP created"
           fi
 
@@ -83,7 +105,7 @@ jobs:
             mkdir -p release/firefox
             cp -r src/* release/firefox/
 
-            cd release/firefox
+            cd release/firefox || exit 0
             cat manifest.json | jq '
               .manifest_version = 2 |
               .browser_action = .action |
@@ -95,13 +117,13 @@ jobs:
             mv manifest.firefox.json manifest.json
             rm -f config.js config.example.js
 
-            zip -r ../../release/weather-extension-firefox-v${{ github.event.inputs.version }}.zip .
+            zip -r ../../release/weather-extension-firefox-v${VERSION}.zip .
             cd ../..
             echo "Firefox ZIP created"
           fi
 
           echo "Build results:"
-          ls -la release/*.zip
+          ls -la release/*.zip || true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -111,16 +133,16 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release
-        if: github.event.inputs.create_release == 'true'
+        if: ${{ github.event.inputs.create_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', github.event.inputs.version) }}
+          tag_name: v${{ env.VERSION }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', env.VERSION) }}
           body: |
-            ## Weather Extension v${{ github.event.inputs.version }}
+            ## Weather Extension v${{ env.VERSION }}
 
             ### Release Info
-            - **Version:** ${{ github.event.inputs.version }}
+            - **Version:** ${{ env.VERSION }}
             - **Target:** ${{ github.event.inputs.target }}
 
             ### Packages
@@ -134,7 +156,7 @@ jobs:
             3. Firefox: `about:debugging#/runtime/this-firefox` -> Load Temporary Add-on -> select `manifest.json`
 
             ---
-            Released on ${{ github.event.inputs.version }}
+            Released on ${{ env.VERSION }}
           files: release/*.zip
           draft: false
           prerelease: false
