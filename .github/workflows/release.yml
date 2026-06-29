@@ -13,11 +13,8 @@ on:
         type: choice
         default: 'all'
         options:
-          - chrome
+          - chromium
           - firefox
-          - edge
-          - opera
-          - brave
           - safari
           - all
       create_release:
@@ -43,9 +40,11 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-linux:
     runs-on: ubuntu-latest
-    name: Build & Release
+    name: Build Linux (Chromium + Firefox)
+    outputs:
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Checkout repository
@@ -64,204 +63,180 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq zip
 
-      - name: Validate version format
+      - name: Setup version
         run: |
           VERSION="${{ github.event.inputs.version }}"
           if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "❌ Invalid version format. Expected: X.Y.Z or vX.Y.Z"
             exit 1
           fi
-          echo "✅ Version format valid: $VERSION"
-
-      - name: Normalize version
-        run: |
-          INPUT_VERSION="${{ github.event.inputs.version }}"
-          VERSION="${INPUT_VERSION#v}"
+          VERSION="${VERSION#v}"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "✅ Normalized version: $VERSION"
+          echo "✅ Version: ${VERSION}"
 
       - name: Update version in manifests
         run: |
           VERSION="${{ env.VERSION }}"
-          
           if [ -f "src/manifest.json" ]; then
             jq --arg v "$VERSION" '.version = $v' src/manifest.json > src/manifest.json.tmp
             mv src/manifest.json.tmp src/manifest.json
             echo "✅ Updated src/manifest.json"
           fi
-          
           if [ -f "package.json" ]; then
             jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
             mv package.json.tmp package.json
             echo "✅ Updated package.json"
           fi
 
-      - name: Build all browser versions
+      - name: Build browser source
         run: |
-          echo "🏗️  Building browser extensions..."
-          node build-multi-browser.js
-          echo "✅ All versions built"
+          TARGET="${{ github.event.inputs.target }}"
+          echo "🏗️  Building for target: ${TARGET}"
+          node .github/build-multi-browser.js "${TARGET}"
+          echo "✅ Build completed"
 
-      - name: Package Chrome
+      - name: Package Chromium ZIP
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'chromium' }}
         run: |
-          cd release/chrome
-          zip -r -q ../../release/weather-extension-chrome-v${{ env.VERSION }}.zip .
-          cd ../..
-          echo "✅ Chrome: weather-extension-chrome-v${{ env.VERSION }}.zip"
+          echo "📦 Creating Chromium ZIP..."
+          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ env.VERSION }}.zip"
+          rm -f "$CHROMIUM_ZIP"
+          for browser in chrome edge opera brave; do
+            if [ -d "release/$browser" ]; then
+              echo "  Adding $browser..."
+              cd "release/$browser"
+              zip -r -q "../../$CHROMIUM_ZIP" .
+              cd ../..
+            fi
+          done
+          echo "✅ $CHROMIUM_ZIP"
 
-      - name: Package Firefox
+      - name: Package Firefox XPI
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'firefox' }}
         run: |
-          cd release/firefox
-          zip -r -q ../../release/weather-extension-firefox-v${{ env.VERSION }}.xpi .
-          cd ../..
-          echo "✅ Firefox: weather-extension-firefox-v${{ env.VERSION }}.xpi"
-
-      - name: Package Edge
-        run: |
-          cd release/edge
-          zip -r -q ../../release/weather-extension-edge-v${{ env.VERSION }}.zip .
-          cd ../..
-          echo "✅ Edge: weather-extension-edge-v${{ env.VERSION }}.zip"
-
-      - name: Package Opera
-        run: |
-          cd release/opera
-          zip -r -q ../../release/weather-extension-opera-v${{ env.VERSION }}.zip .
-          cd ../..
-          echo "✅ Opera: weather-extension-opera-v${{ env.VERSION }}.zip"
-
-      - name: Package Brave
-        run: |
-          cd release/brave
-          zip -r -q ../../release/weather-extension-brave-v${{ env.VERSION }}.zip .
-          cd ../..
-          echo "✅ Brave: weather-extension-brave-v${{ env.VERSION }}.zip"
-
-      - name: Package Safari
-        run: |
-          cd release/safari
-          zip -r -q ../../release/weather-extension-safari-v${{ env.VERSION }}.zip .
-          cd ../..
-          echo "✅ Safari: weather-extension-safari-v${{ env.VERSION }}.zip"
+          echo "📦 Creating Firefox XPI..."
+          if [ -d "release/firefox" ]; then
+            cd release/firefox
+            zip -r -q "../../release/weather-extension-firefox-v${{ env.VERSION }}.xpi" .
+            cd ../..
+            echo "✅ weather-extension-firefox-v${{ env.VERSION }}.xpi"
+          fi
 
       - name: Verify packages
         run: |
           echo "📋 Generated packages:"
           ls -lh release/*.{zip,xpi} 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}'
-          
-          echo -e "\n🔍 Verifying package contents..."
-          for file in release/*.{zip,xpi}; do
-            if [ -f "$file" ]; then
-              echo "  $file:"
-              unzip -l "$file" | head -15
-              echo ""
-            fi
-          done
+          echo ""
+          TARGET="${{ github.event.inputs.target }}"
+          VERSION="${{ env.VERSION }}"
+          ERR=0
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "chromium" ]; then
+            [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] || { echo "❌ Missing chromium package"; ERR=1; }
+          fi
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "firefox" ]; then
+            [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] || { echo "❌ Missing firefox package"; ERR=1; }
+          fi
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "safari" ]; then
+            [ -f "release/weather-extension-safari-v${VERSION}.zip" ] || { echo "❌ Missing safari package"; ERR=1; }
+          fi
+          [ "$ERR" -eq 0 ] || exit 1
+          echo "✅ All expected packages present"
 
-      - name: Upload build artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-packages-${{ env.VERSION }}
-          path: release/*.{zip,xpi}
+          path: |
+            release/*.{zip,xpi}
+            release/build-manifest.json
           retention-days: 30
 
-      - name: Determine release flags
+  build-macos-safari:
+    runs-on: macos-latest
+    name: Build Safari macOS App
+    if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}
+    needs: build-linux
+    outputs:
+      version: ${{ needs.build-linux.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-packages-${{ needs.build-linux.outputs.version }}
+          path: release/
+
+      - name: Build Safari extension source
         run: |
-          RELEASE_TYPE="${{ github.event.inputs.release_type }}"
-          
-          if [ "$RELEASE_TYPE" = "draft" ]; then
-            echo "DRAFT=true" >> $GITHUB_ENV
-            echo "PRERELEASE=false" >> $GITHUB_ENV
-            echo "🟡 Release mode: DRAFT"
-          elif [ "$RELEASE_TYPE" = "prerelease" ]; then
-            echo "DRAFT=false" >> $GITHUB_ENV
-            echo "PRERELEASE=true" >> $GITHUB_ENV
-            echo "🟠 Release mode: PRERELEASE"
-          else
-            echo "DRAFT=false" >> $GITHUB_ENV
-            echo "PRERELEASE=false" >> $GITHUB_ENV
-            echo "🟢 Release mode: STABLE"
-          fi
+          echo "🏗️  Building Safari source..."
+          node .github/build-multi-browser.js safari
+          echo "✅ Safari source ready"
+
+      - name: Create Safari app bundle
+        run: bash .github/build-safari-macos.sh "${{ needs.build-linux.outputs.version }}"
+
+      - name: Upload Safari artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-app-${{ needs.build-linux.outputs.version }}
+          path: release/weather-extension-safari-v*.zip
+          retention-days: 30
+
+  release:
+    runs-on: ubuntu-latest
+    name: Create GitHub Release
+    needs: [build-linux]
+    if: |
+      always() &&
+      needs.build-linux.result == 'success'
+
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-packages-${{ needs.build-linux.outputs.version }}
+          path: release/
+
+      - name: Download Safari artifact
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: safari-app-${{ needs.build-linux.outputs.version }}
+          path: release/
+
+      - name: Set release flags
+        run: |
+          case "${{ github.event.inputs.release_type }}" in
+            draft)
+              echo "DRAFT=true" >> $GITHUB_ENV
+              echo "PRERELEASE=false" >> $GITHUB_ENV
+              ;;
+            prerelease)
+              echo "DRAFT=false" >> $GITHUB_ENV
+              echo "PRERELEASE=true" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "DRAFT=false" >> $GITHUB_ENV
+              echo "PRERELEASE=false" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Generate release notes
+        env:
+          RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+        run: node .github/generate-release-browser.js
 
       - name: Create GitHub Release
         if: ${{ github.event.inputs.create_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', env.VERSION) }}
-          body: |
-            # Weather Extension v${{ env.VERSION }}
-
-            ## 📋 Release Information
-            - **Version:** ${{ env.VERSION }}
-            - **Build Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-            - **Release Type:** ${{ github.event.inputs.release_type }}
-
-            ## 🌐 Available Downloads
-
-            ### Chrome & Chromium-Based
-            - **Chrome** - `weather-extension-chrome-v${{ env.VERSION }}.zip`
-            - **Edge** - `weather-extension-edge-v${{ env.VERSION }}.zip`
-            - **Opera** - `weather-extension-opera-v${{ env.VERSION }}.zip`
-            - **Brave** - `weather-extension-brave-v${{ env.VERSION }}.zip`
-
-            ### Firefox
-            - **Firefox** - `weather-extension-firefox-v${{ env.VERSION }}.xpi`
-
-            ### Apple
-            - **Safari** - `weather-extension-safari-v${{ env.VERSION }}.zip`
-
-            ## 📦 Package Contents
-            Each package includes:
-            - ✅ All source files with proper browser-specific manifest
-            - ✅ Icons (SVG + PNG formats, 16x16, 48x48, 128x128)
-            - ✅ Localization files (25+ languages)
-            - ✅ Popup UI (HTML, CSS, JavaScript)
-            - ✅ Background & content scripts
-
-            ## 🚀 Installation Guide
-
-            ### Chrome & Chromium Browsers (Chrome, Edge, Opera, Brave)
-            1. Download the appropriate `.zip` file
-            2. Extract to a folder
-            3. Open browser extensions page:
-               - Chrome/Brave: `chrome://extensions/`
-               - Edge: `edge://extensions/`
-               - Opera: `opera://extensions/`
-            4. Enable "Developer mode"
-            5. Click "Load unpacked" and select the extracted folder
-
-            ### Firefox
-            1. Download `weather-extension-firefox-v${{ env.VERSION }}.xpi`
-            2. Open Firefox or go to `about:addons`
-            3. Click settings icon (⚙️) → "Install add-on from file"
-            4. Select the `.xpi` file
-
-            ### Safari
-            1. Download and extract the `.zip` file
-            2. Open Safari → Settings → Extensions
-            3. Drag & drop the extracted folder into the Extensions area
-            4. Confirm the installation
-
-            ## 🔧 Build Details
-            - **Manifest Version:** MV3 (Chrome, Edge, Opera, Brave, Safari) | MV2 (Firefox)
-            - **Minimum Browser Versions:**
-              - Chrome: Latest
-              - Edge: 90+
-              - Opera: 89+
-              - Brave: 91+
-              - Firefox: 109+
-              - Safari: 14+
-
-            ## ✨ What's Included
-            - Real-time weather data from Open-Meteo API
-            - 7-day weather forecast
-            - 25+ language support
-            - Geolocation support
-            - Favorite locations management
-
-            ---
-            *Automatically built by GitHub Actions*
+          tag_name: v${{ needs.build-linux.outputs.version }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', needs.build-linux.outputs.version) }}
+          body_path: release/release-notes.md
           files: release/*.{zip,xpi}
           draft: ${{ env.DRAFT }}
           prerelease: ${{ env.PRERELEASE }}
@@ -270,9 +245,6 @@ jobs:
 
       - name: Release Summary
         run: |
-          echo "✅ Release Summary"
-          echo "=================="
-          echo "Version: v${{ env.VERSION }}"
-          echo "Type: ${{ github.event.inputs.release_type }}"
-          echo "Packages:"
-          ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  - /'
+          echo "✅ Release v${{ needs.build-linux.outputs.version }}"
+          echo "Target: ${{ github.event.inputs.target }}"
+          ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'

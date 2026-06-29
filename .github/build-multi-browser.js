@@ -4,19 +4,23 @@ const path = require("path");
 const srcDir = path.join(__dirname, "src");
 const releaseDir = path.join(__dirname, "release");
 
-async function copyDir(src, dest) {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
+const CHROMIUM_BROWSERS = ["chrome", "edge", "opera", "brave"];
+const SAFARI_BROWSER = "safari";
+const FIREFOX_BROWSER = "firefox";
+
+const VALID_TARGETS = ["chromium", "firefox", "safari", "all"];
+
+function parseTarget(arg) {
+  const target = (arg || "all").toLowerCase();
+  if (!VALID_TARGETS.includes(target)) {
+    console.error(`❌ Unknown target: ${arg}`);
+    console.error(`   Valid targets: ${VALID_TARGETS.join(", ")}`);
+    process.exit(1);
   }
-  for (const file of fs.readdirSync(src)) {
-    const srcFile = path.join(src, file);
-    const destFile = path.join(dest, file);
-    if (fs.statSync(srcFile).isDirectory()) {
-      copyDir(srcFile, destFile);
-    } else {
-      fs.copyFileSync(srcFile, destFile);
-    }
-  }
+  if (target === "all") return [...CHROMIUM_BROWSERS, FIREFOX_BROWSER, SAFARI_BROWSER];
+  if (target === "chromium") return [...CHROMIUM_BROWSERS];
+  if (target === "firefox") return [FIREFOX_BROWSER];
+  if (target === "safari") return [SAFARI_BROWSER];
 }
 
 async function buildIcons(iconsSrc, iconsDest) {
@@ -28,7 +32,6 @@ async function buildIcons(iconsSrc, iconsDest) {
   fs.mkdirSync(iconsDest, { recursive: true });
   const svgFiles = fs.readdirSync(iconsSrc).filter(f => f.endsWith(".svg"));
 
-  // Check if sharp is available for PNG conversion
   let sharp = null;
   try {
     sharp = require("sharp");
@@ -40,11 +43,9 @@ async function buildIcons(iconsSrc, iconsDest) {
     const svgPath = path.join(iconsSrc, svg);
     const baseName = path.basename(svg, ".svg");
 
-    // Copy original SVG
     fs.copyFileSync(svgPath, path.join(iconsDest, svg));
     console.log(`  ✓ Copied: ${svg}`);
 
-    // Generate PNGs if sharp available
     if (sharp) {
       const svgBuffer = fs.readFileSync(svgPath);
       for (const size of [16, 48, 128]) {
@@ -79,13 +80,11 @@ async function buildForBrowser(browser, baseDir) {
   const buildDir = path.join(baseDir, browser);
   console.log(`\n📦 Building for ${browser.toUpperCase()}...`);
 
-  // Clean
   if (fs.existsSync(buildDir)) {
     fs.rmSync(buildDir, { recursive: true });
   }
   fs.mkdirSync(buildDir, { recursive: true });
 
-  // Copy base files
   const baseFiles = ["popup.html", "popup.css", "popup.js", "background.js", "content.js"];
   for (const file of baseFiles) {
     const srcFile = path.join(srcDir, file);
@@ -95,13 +94,9 @@ async function buildForBrowser(browser, baseDir) {
     }
   }
 
-  // Copy icons
   await buildIcons(path.join(srcDir, "icons"), path.join(buildDir, "icons"));
-
-  // Copy locales
   await buildLocales(path.join(srcDir, "locales"), path.join(buildDir, "locales"));
 
-  // Generate browser-specific manifest
   const baseManifest = JSON.parse(fs.readFileSync(path.join(srcDir, "manifest.json"), "utf8"));
   const manifest = generateManifest(baseManifest, browser);
 
@@ -110,8 +105,6 @@ async function buildForBrowser(browser, baseDir) {
     JSON.stringify(manifest, null, 2)
   );
   console.log(`  ✓ Generated manifest for ${browser}`);
-
-  return buildDir;
 }
 
 function generateManifest(base, browser) {
@@ -133,7 +126,6 @@ function generateManifest(base, browser) {
       break;
 
     case "firefox":
-      // Firefox uses Manifest V2
       manifest.manifest_version = 2;
       manifest.browser_action = manifest.action;
       delete manifest.action;
@@ -161,24 +153,76 @@ function generateManifest(base, browser) {
 }
 
 async function build() {
-  const browsers = ["chrome", "firefox", "edge", "opera", "brave", "safari"];
+  const targetArg = process.argv[2];
+  const browsers = parseTarget(targetArg);
 
-  // Clean release dir
   if (fs.existsSync(releaseDir)) {
     fs.rmSync(releaseDir, { recursive: true });
   }
   fs.mkdirSync(releaseDir, { recursive: true });
 
-  const builds = {};
+  const baseManifest = JSON.parse(fs.readFileSync(path.join(srcDir, "manifest.json"), "utf8"));
+  const version = baseManifest.version;
+
+  const buildManifest = {
+    version,
+    target: (targetArg || "all").toLowerCase(),
+    packages: {
+      chromium: null,
+      firefox: null,
+      safari: null
+    }
+  };
+
   for (const browser of browsers) {
-    builds[browser] = await buildForBrowser(browser, releaseDir);
+    await buildForBrowser(browser, releaseDir);
   }
+
+  const hasChromium = browsers.some(b => CHROMIUM_BROWSERS.includes(b));
+  const hasFirefox = browsers.includes(FIREFOX_BROWSER);
+  const hasSafari = browsers.includes(SAFARI_BROWSER);
+
+  if (hasChromium) {
+    buildManifest.packages.chromium = {
+      filename: `weather-extension-chromium-v${version}.zip`,
+      format: "zip",
+      manifest_version: 3,
+      browsers: CHROMIUM_BROWSERS.filter(b => browsers.includes(b))
+    };
+  }
+
+  if (hasFirefox) {
+    buildManifest.packages.firefox = {
+      filename: `weather-extension-firefox-v${version}.xpi`,
+      format: "xpi",
+      manifest_version: 2
+    };
+  }
+
+  if (hasSafari) {
+    buildManifest.packages.safari = {
+      filename: `weather-extension-safari-v${version}.zip`,
+      format: "zip",
+      manifest_version: 3,
+      note: "Run through safari-web-extension-converter on macOS to produce .app bundle"
+    };
+  }
+
+  fs.writeFileSync(
+    path.join(releaseDir, "build-manifest.json"),
+    JSON.stringify(buildManifest, null, 2)
+  );
+  console.log(`\n✅ Wrote build-manifest.json`);
 
   console.log("\n✅ All builds completed!");
   console.log("\nBuild directories:");
-  for (const [browser, dir] of Object.entries(builds)) {
-    console.log(`  - ${browser}: ${dir}`);
+  for (const browser of browsers) {
+    console.log(`  - ${browser}: ${path.join(releaseDir, browser)}`);
   }
+  console.log("\nOutput packages:");
+  if (buildManifest.packages.chromium) console.log(`  - ${buildManifest.packages.chromium.filename}`);
+  if (buildManifest.packages.firefox) console.log(`  - ${buildManifest.packages.firefox.filename}`);
+  if (buildManifest.packages.safari) console.log(`  - ${buildManifest.packages.safari.filename}`);
 }
 
 build().catch(err => {
