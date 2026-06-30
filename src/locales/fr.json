@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Chargement des données météo...",
+    "searchPlaceholder":  "Entrer un lieu...",
+    "search":  "Rechercher",
+    "saveFavorite":  "Enregistrer comme favori",
+    "forecast":  "Prvisions",
+    "searchHint":  "Rechercher la météo pour voir les prévisions",
+    "favorites":  "Favoris",
+    "noFavorites":  "Aucun favori enregistré",
+    "removeFavorite":  "Supprimer le favori",
+    "enterLocation":  "Veuillez entrer un lieu.",
+    "loadingForecast":  "Chargement des prévisions...",
+    "notFound":  "Lieu non trouvé. Veuillez réessayer.",
+    "fetchError":  "Erreur lors de la récupération des données météo.",
+    "forecastUnavailable":  "Prévisions non disponibles",
+    "connectionError":  "Erreur de connexion. Veuillez vérifier votre connexion internet.",
+    "noForecast":  "Aucune prévision disponible",
+    "feelsLike":  "Ressenti",
+    "lastUpdated":  "Dernière mise à jour",
+    "humidity":  "Humidité",
+    "wind":  "Vent",
+    "today":  "Aujourd\u0027hui"
+}

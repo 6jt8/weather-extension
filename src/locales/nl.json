@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Weergegevens laden...",
+    "searchPlaceholder":  "Locatie invoeren...",
+    "search":  "Zoeken",
+    "saveFavorite":  "Opslaan als favoriet",
+    "forecast":  "Voorspelling",
+    "searchHint":  "Zoek het weer om de voorspelling te zien",
+    "favorites":  "Favorieten",
+    "noFavorites":  "Geen favorieten opgeslagen",
+    "removeFavorite":  "Favoriet verwijderen",
+    "enterLocation":  "Voer een locatie in.",
+    "loadingForecast":  "Voorspelling laden...",
+    "notFound":  "Locatie niet gevonden. Probeer het opnieuw.",
+    "fetchError":  "Fout bij ophalen weergegevens.",
+    "forecastUnavailable":  "Voorspelling niet beschikbaar",
+    "connectionError":  "Verbindingsfout. Controleer je internetverbinding.",
+    "noForecast":  "Geen voorspelling beschikbaar",
+    "feelsLike":  "Gevoelstemperatuur",
+    "lastUpdated":  "Laatst bijgewerkt",
+    "humidity":  "Luchtvochtigheid",
+    "wind":  "Wind",
+    "today":  "Vandaag"
+}

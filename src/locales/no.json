@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Laster værdata...",
+    "searchPlaceholder":  "Skriv inn sted...",
+    "search":  "Søk",
+    "saveFavorite":  "Lagre som favoritt",
+    "forecast":  "Vrmelding",
+    "searchHint":  "Søk etter vær for å se melding",
+    "favorites":  "Favoritter",
+    "noFavorites":  "Ingen favoritter lagret",
+    "removeFavorite":  "Fjern favoritt",
+    "enterLocation":  "Vennligst skriv inn et sted.",
+    "loadingForecast":  "Laster værmelding...",
+    "notFound":  "Sted ikke funnet. Prøv igjen.",
+    "fetchError":  "Feil ved henting av værdata.",
+    "forecastUnavailable":  "Værmelding ikke tilgjengelig",
+    "connectionError":  "Tilkoblingsfeil. Sjekk internettforbindelsen.",
+    "noForecast":  "Ingen værmelding tilgjengelig",
+    "feelsLike":  "Føles som",
+    "lastUpdated":  "Sist oppdatert",
+    "humidity":  "Luftfuktighet",
+    "wind":  "Vind",
+    "today":  "I dag"
+}

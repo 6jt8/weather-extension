@@ -1,0 +1,23 @@
+{
+  "loading": "Hava durumu verileri yükleniyor...",
+  "searchPlaceholder": "Konum girin...",
+  "search": "Ara",
+  "saveFavorite": "Favorilere kaydet",
+  "forecast": "Tahmin",
+  "searchHint": "Tahmini görmek için hava durumu arayın",
+  "favorites": "Favoriler",
+  "noFavorites": "Kayıtlı favori yok",
+  "removeFavorite": "Favoriyi kaldır",
+  "enterLocation": "Lütfen bir konum girin.",
+  "loadingForecast": "Tahmin yükleniyor...",
+  "notFound": "Konum bulunamadı. Tekrar deneyin.",
+  "fetchError": "Hava durumu verileri alınırken hata oluştu.",
+  "forecastUnavailable": "Tahmin kullanılamıyor",
+  "connectionError": "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+  "noForecast": "Kullanılabilir tahmin yok",
+  "feelsLike": "Hissedilen",
+  "lastUpdated": "Son güncelleme",
+  "humidity": "Nem",
+  "wind": "Rüzgar",
+  "today": "Bugün"
+}

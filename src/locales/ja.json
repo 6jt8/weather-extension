@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "天気データを読み込み中...",
+    "searchPlaceholder":  "場所を入力...",
+    "search":  "検索",
+    "saveFavorite":  "",
+    "forecast":  "",
+    "searchHint":  "天気を検索して予報を表示",
+    "favorites":  "",
+    "noFavorites":  "お気に入りは保存されていません",
+    "removeFavorite":  "お気に入りを削除",
+    "enterLocation":  "場所を入力してください。",
+    "loadingForecast":  "予報を読み込み中...",
+    "notFound":  "場所が見つかりません。もう一度お試しください。",
+    "fetchError":  "天気データの取得エラー。",
+    "forecastUnavailable":  "予報は利用できません",
+    "connectionError":  "接続エラー。インターネット接続を確認してください。",
+    "noForecast":  "利用可能な予報はありません",
+    "feelsLike":  "体感",
+    "lastUpdated":  "最終更新",
+    "humidity":  "湿度",
+    "wind":  "風",
+    "today":  "今日"
+}

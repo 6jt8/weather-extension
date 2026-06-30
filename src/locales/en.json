@@ -1,0 +1,23 @@
+{
+  "loading": "Loading weather data...",
+  "searchPlaceholder": "Enter location...",
+  "search": "Search",
+  "saveFavorite": "Save as favorite",
+  "forecast": "Forecast",
+  "searchHint": "Search weather to see forecast",
+  "favorites": "Favorites",
+  "noFavorites": "No favorites saved",
+  "removeFavorite": "Remove favorite",
+  "enterLocation": "Please enter a location.",
+  "loadingForecast": "Loading forecast...",
+  "notFound": "Location not found. Please try again.",
+  "fetchError": "Error fetching weather data.",
+  "forecastUnavailable": "Forecast not available",
+  "connectionError": "Connection error. Please check your internet connection.",
+  "noForecast": "No forecast available",
+  "feelsLike": "Feels like",
+  "lastUpdated": "Last updated",
+  "humidity": "Humidity",
+  "wind": "Wind",
+  "today": "Today"
+}

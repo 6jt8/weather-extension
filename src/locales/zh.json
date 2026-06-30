@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "正在加载天气数据...",
+    "searchPlaceholder":  "输入地点...",
+    "search":  "搜索",
+    "saveFavorite":  "",
+    "forecast":  "",
+    "searchHint":  "搜索天气以查看预报",
+    "favorites":  "",
+    "noFavorites":  "暂无收藏",
+    "removeFavorite":  "删除收藏",
+    "enterLocation":  "请输入地点。",
+    "loadingForecast":  "正在加载预报...",
+    "notFound":  "未找到地点。请重试。",
+    "fetchError":  "获取天气数据时出错。",
+    "forecastUnavailable":  "预报不可用",
+    "connectionError":  "连接错误。请检查您的网络连接。",
+    "noForecast":  "无可用预报",
+    "feelsLike":  "体感",
+    "lastUpdated":  "最后更新",
+    "humidity":  "湿度",
+    "wind":  "风",
+    "today":  "今天"
+}

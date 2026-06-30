@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Időjárási adatok betöltése...",
+    "searchPlaceholder":  "Hely megadása...",
+    "search":  "Keresés",
+    "saveFavorite":  "Ments kedvencknt",
+    "forecast":  "Elrejelzs",
+    "searchHint":  "Keressen időjárást az előrejelzés megtekintéséhez",
+    "favorites":  "Kedvencek",
+    "noFavorites":  "Nincs mentett kedvenc",
+    "removeFavorite":  "Kedvenc eltávolítása",
+    "enterLocation":  "Adjon meg egy helyet.",
+    "loadingForecast":  "Előrejelzés betöltése...",
+    "notFound":  "A hely nem található. Próbálja újra.",
+    "fetchError":  "Hiba az időjárási adatok lekérésekor.",
+    "forecastUnavailable":  "Az előrejelzés nem érhető el",
+    "connectionError":  "Csatlakozási hiba. Ellenőrizze az internetkapcsolatot.",
+    "noForecast":  "Nincs elérhető előrejelzés",
+    "feelsLike":  "Hőérzet",
+    "lastUpdated":  "Utolsó frissítés",
+    "humidity":  "Páratartalom",
+    "wind":  "Szél",
+    "today":  "Ma"
+}

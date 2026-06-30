@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Indlæser vejrdata...",
+    "searchPlaceholder":  "Indtast sted...",
+    "search":  "Søg",
+    "saveFavorite":  "Gem som favorit",
+    "forecast":  "Vejrudsigt",
+    "searchHint":  "Søg efter vejr for at se udsigt",
+    "favorites":  "Favoritter",
+    "noFavorites":  "Ingen favoritter gemt",
+    "removeFavorite":  "Fjern favorit",
+    "enterLocation":  "Indtast venligst et sted.",
+    "loadingForecast":  "Indlæser vejrudsigt...",
+    "notFound":  "Sted ikke fundet. Prøv igen.",
+    "fetchError":  "Fejl ved hentning af vejrdata.",
+    "forecastUnavailable":  "Vejrudsigt ikke tilgængelig",
+    "connectionError":  "Forbindelsesfejl. Tjek din internetforbindelse.",
+    "noForecast":  "Ingen vejrudsigt tilgængelig",
+    "feelsLike":  "Føles som",
+    "lastUpdated":  "Sidst opdateret",
+    "humidity":  "Luftfugtighed",
+    "wind":  "Vind",
+    "today":  "I dag"
+}

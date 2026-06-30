@@ -1,0 +1,12 @@
+{
+  "name": "weather-extension",
+  "version": "1.1.0",
+  "description": "Browser extension for weather with 7-day forecast and 25 languages",
+  "scripts": {
+    "build": "node .github/build-multi-browser.js all"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "sharp": "^0.35.2"
+  }
+}

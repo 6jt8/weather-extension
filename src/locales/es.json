@@ -1,0 +1,23 @@
+﻿{
+    "loading":  "Cargando datos del clima...",
+    "searchPlaceholder":  "Ingresar ubicación...",
+    "search":  "Buscar",
+    "saveFavorite":  "Guardar como favorito",
+    "forecast":  "Pronstico",
+    "searchHint":  "Busca el clima para ver el pronóstico",
+    "favorites":  "Favoritos",
+    "noFavorites":  "No hay favoritos guardados",
+    "removeFavorite":  "Eliminar favorito",
+    "enterLocation":  "Por favor ingresa una ubicación.",
+    "loadingForecast":  "Cargando pronóstico...",
+    "notFound":  "Ubicación no encontrada. Inténtalo de nuevo.",
+    "fetchError":  "Error al obtener los datos del clima.",
+    "forecastUnavailable":  "Pronóstico no disponible",
+    "connectionError":  "Error de conexión. Verifica tu conexión a internet.",
+    "noForecast":  "No hay pronóstico disponible",
+    "feelsLike":  "Sensación térmica",
+    "lastUpdated":  "Última actualización",
+    "humidity":  "Humedad",
+    "wind":  "Viento",
+    "today":  "Hoy"
+}

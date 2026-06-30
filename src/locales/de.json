@@ -1,0 +1,23 @@
+{
+  "loading": "Lade Wetterdaten...",
+  "searchPlaceholder": "Ort eingeben...",
+  "search": "Suchen",
+  "saveFavorite": "Als Favorit speichern",
+  "forecast": "Vorhersage",
+  "searchHint": "Wetter suchen, um Vorhersage zu sehen",
+  "favorites": "Favoriten",
+  "noFavorites": "Keine Favoriten gespeichert",
+  "removeFavorite": "Favorit entfernen",
+  "enterLocation": "Bitte einen Ort eingeben.",
+  "loadingForecast": "Lade Vorhersage...",
+  "notFound": "Ort nicht gefunden. Bitte versuche es erneut.",
+  "fetchError": "Fehler beim Abrufen der Wetterdaten.",
+  "forecastUnavailable": "Vorhersage nicht verfügbar",
+  "connectionError": "Verbindungsfehler. Bitte überprüfe deine Internetverbindung.",
+  "noForecast": "Keine Vorhersage verfügbar",
+  "feelsLike": "Gefühlt",
+  "lastUpdated": "Letztes Update",
+  "humidity": "Luftfeuchtigkeit",
+  "wind": "Wind",
+  "today": "Heute"
+}

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Weather Extension",
+  "version": "1.1",
+  "description": "Shows current weather, 7-day forecast, and allows managing favorites. Supports 24 languages.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/weather-app-48-16.png",
+      "48": "icons/weather-app-48-48.png",
+      "128": "icons/weather-app-48-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/weather-app-48-16.png",
+    "48": "icons/weather-app-48-48.png",
+    "128": "icons/weather-app-48-128.png"
+  },
+  "permissions": [
+    "storage",
+    "geolocation"
+  ],
+  "host_permissions": [
+    "https://api.open-meteo.com/*",
+    "https://geocoding-api.open-meteo.com/*",
+    "https://nominatim.openstreetmap.org/*"
+  ]
+}

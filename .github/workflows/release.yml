@@ -1,0 +1,250 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.0)'
+        required: true
+        type: string
+      target:
+        description: 'Build target'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+          - chromium
+          - firefox
+          - safari
+          - all
+      create_release:
+        description: 'Create GitHub release'
+        required: true
+        type: boolean
+        default: true
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        default: 'release'
+        options:
+          - release
+          - prerelease
+          - draft
+      release_name:
+        description: 'Release name (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    name: Build Linux (Chromium + Firefox)
+    outputs:
+      version: ${{ env.VERSION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install CLI tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq zip
+
+      - name: Setup version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format. Expected: X.Y.Z or vX.Y.Z"
+            exit 1
+          fi
+          VERSION="${VERSION#v}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "✅ Version: ${VERSION}"
+
+      - name: Update version in manifests
+        run: |
+          VERSION="${{ env.VERSION }}"
+          if [ -f "src/manifest.json" ]; then
+            jq --arg v "$VERSION" '.version = $v' src/manifest.json > src/manifest.json.tmp
+            mv src/manifest.json.tmp src/manifest.json
+            echo "✅ Updated src/manifest.json"
+          fi
+          if [ -f "package.json" ]; then
+            jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            echo "✅ Updated package.json"
+          fi
+
+      - name: Build browser source
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          echo "🏗️  Building for target: ${TARGET}"
+          node .github/build-multi-browser.js "${TARGET}"
+          echo "✅ Build completed"
+
+      - name: Package Chromium ZIP
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'chromium' }}
+        run: |
+          echo "📦 Creating Chromium ZIP..."
+          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ env.VERSION }}.zip"
+          rm -f "$CHROMIUM_ZIP"
+          for browser in chrome edge opera brave; do
+            if [ -d "release/$browser" ]; then
+              echo "  Adding $browser..."
+              cd "release/$browser"
+              zip -r -q "../../$CHROMIUM_ZIP" .
+              cd ../..
+            fi
+          done
+          echo "✅ $CHROMIUM_ZIP"
+
+      - name: Package Firefox XPI
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'firefox' }}
+        run: |
+          echo "📦 Creating Firefox XPI..."
+          if [ -d "release/firefox" ]; then
+            cd release/firefox
+            zip -r -q "../../release/weather-extension-firefox-v${{ env.VERSION }}.xpi" .
+            cd ../..
+            echo "✅ weather-extension-firefox-v${{ env.VERSION }}.xpi"
+          fi
+
+      - name: Verify packages
+        run: |
+          echo "📋 Generated packages:"
+          ls -lh release/*.{zip,xpi} 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}'
+          echo ""
+          TARGET="${{ github.event.inputs.target }}"
+          VERSION="${{ env.VERSION }}"
+          ERR=0
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "chromium" ]; then
+            [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] || { echo "❌ Missing chromium package"; ERR=1; }
+          fi
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "firefox" ]; then
+            [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] || { echo "❌ Missing firefox package"; ERR=1; }
+          fi
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "safari" ]; then
+            [ -f "release/weather-extension-safari-v${VERSION}.zip" ] || { echo "❌ Missing safari package"; ERR=1; }
+          fi
+          [ "$ERR" -eq 0 ] || exit 1
+          echo "✅ All expected packages present"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-${{ env.VERSION }}
+          path: |
+            release/*.{zip,xpi}
+            release/build-manifest.json
+          retention-days: 30
+
+  build-macos-safari:
+    runs-on: macos-latest
+    name: Build Safari macOS App
+    if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}
+    needs: build-linux
+    outputs:
+      version: ${{ needs.build-linux.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-packages-${{ needs.build-linux.outputs.version }}
+          path: release/
+
+      - name: Build Safari extension source
+        run: |
+          echo "🏗️  Building Safari source..."
+          node .github/build-multi-browser.js safari
+          echo "✅ Safari source ready"
+
+      - name: Create Safari app bundle
+        run: bash .github/build-safari-macos.sh "${{ needs.build-linux.outputs.version }}"
+
+      - name: Upload Safari artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-app-${{ needs.build-linux.outputs.version }}
+          path: release/weather-extension-safari-v*.zip
+          retention-days: 30
+
+  release:
+    runs-on: ubuntu-latest
+    name: Create GitHub Release
+    needs: [build-linux]
+    if: |
+      always() &&
+      needs.build-linux.result == 'success'
+
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-packages-${{ needs.build-linux.outputs.version }}
+          path: release/
+
+      - name: Download Safari artifact
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: safari-app-${{ needs.build-linux.outputs.version }}
+          path: release/
+
+      - name: Set release flags
+        run: |
+          case "${{ github.event.inputs.release_type }}" in
+            draft)
+              echo "DRAFT=true" >> $GITHUB_ENV
+              echo "PRERELEASE=false" >> $GITHUB_ENV
+              ;;
+            prerelease)
+              echo "DRAFT=false" >> $GITHUB_ENV
+              echo "PRERELEASE=true" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "DRAFT=false" >> $GITHUB_ENV
+              echo "PRERELEASE=false" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Generate release notes
+        env:
+          RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+        run: node .github/generate-release-browser.js
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.create_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build-linux.outputs.version }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', needs.build-linux.outputs.version) }}
+          body_path: release/release-notes.md
+          files: release/*.{zip,xpi}
+          draft: ${{ env.DRAFT }}
+          prerelease: ${{ env.PRERELEASE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Summary
+        run: |
+          echo "✅ Release v${{ needs.build-linux.outputs.version }}"
+          echo "Target: ${{ github.event.inputs.target }}"
+          ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'

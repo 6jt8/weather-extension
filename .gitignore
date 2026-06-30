@@ -1,0 +1,7 @@
+# Dateien, die nicht versioniert werden
+node_modules/
+release/
+src/config.js
+*.zip
+.DS_Store
+release\weather_extension
