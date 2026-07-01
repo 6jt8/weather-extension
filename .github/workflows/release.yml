@@ -348,18 +348,18 @@ jobs:
         id: release_files
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
-          FILES=""
-          if [ "${{ needs.prepare.outputs.has_chromium }}" = "true" ] && [ -f "release/weather-extension-chromium-v${VERSION}.zip" ]; then
-            FILES="${FILES}release/weather-extension-chromium-v${VERSION}.zip "
-          fi
-          if [ "${{ needs.prepare.outputs.has_firefox }}" = "true" ] && [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ]; then
-            FILES="${FILES}release/weather-extension-firefox-v${VERSION}.xpi "
-          fi
-          if [ "${{ needs.prepare.outputs.has_safari }}" = "true" ] && [ -f "release/weather-extension-safari-v${VERSION}.zip" ]; then
-            FILES="${FILES}release/weather-extension-safari-v${VERSION}.zip "
-          fi
-          echo "files=${FILES}" >> $GITHUB_OUTPUT
-          echo "Release files: ${FILES}"
+          {
+            [ "${{ needs.prepare.outputs.has_chromium }}" = "true" ] && [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] && echo "release/weather-extension-chromium-v${VERSION}.zip"
+            [ "${{ needs.prepare.outputs.has_firefox }}" = "true" ] && [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] && echo "release/weather-extension-firefox-v${VERSION}.xpi"
+            [ "${{ needs.prepare.outputs.has_safari }}" = "true" ] && [ -f "release/weather-extension-safari-v${VERSION}.zip" ] && echo "release/weather-extension-safari-v${VERSION}.zip"
+          } > release-files.txt
+          {
+            echo 'files<<EOF'
+            cat release-files.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          echo "Release files:"
+          cat release-files.txt
 
       - name: Generate release notes
         env:
@@ -386,3 +386,4 @@ jobs:
           echo "Target: ${{ github.event.inputs.target }}"
           echo "Files:"
           ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'
+          
