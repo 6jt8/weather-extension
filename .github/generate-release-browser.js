@@ -66,13 +66,9 @@ function getAutoChangelog() {
   }
 }
 
-function generateReleaseNotes(manifest, releaseType = "release", attachOnly = false) {
+function generateReleaseNotes(manifest, releaseType = "release") {
   const v = manifest.version;
   const p = manifest.packages;
-
-  if (attachOnly) {
-    return "";
-  }
 
   const hasAny = p.chromium || p.firefox || p.safari;
   if (!hasAny) {
@@ -146,24 +142,7 @@ function generateReleaseNotes(manifest, releaseType = "release", attachOnly = fa
 }
 
 function main() {
-  const skipNotes = process.env.SKIP_RELEASE_NOTES === "true";
-  const customChangelog = process.env.CUSTOM_CHANGELOG || "";
-  const attachOnly = process.env.ATTACH_ONLY === "true";
   const releaseType = process.env.RELEASE_TYPE || "release";
-
-  if (skipNotes || attachOnly) {
-    const outPath = path.join(releaseDir, "release-notes.md");
-    fs.writeFileSync(outPath, "");
-    console.log(attachOnly ? "Attach-only mode: empty release body" : "Skipped release notes (empty file written)");
-    process.exit(0);
-  }
-
-  if (customChangelog && fs.existsSync(path.join(__dirname, "..", customChangelog))) {
-    const content = fs.readFileSync(path.join(__dirname, "..", customChangelog), "utf8");
-    fs.writeFileSync(path.join(releaseDir, "release-notes.md"), content);
-    console.log("Used custom changelog: " + customChangelog);
-    process.exit(0);
-  }
 
   let manifest = buildInstallManifest();
   if (!manifest) {
@@ -178,7 +157,7 @@ function main() {
     }
   }
 
-  const notes = generateReleaseNotes(manifest, releaseType, attachOnly);
+  const notes = generateReleaseNotes(manifest, releaseType);
 
   const outPath = path.join(releaseDir, "release-notes.md");
   fs.writeFileSync(outPath, notes);
