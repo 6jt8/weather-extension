@@ -216,7 +216,7 @@ jobs:
       - name: Upload Chromium artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ needs.prepare.outputs.version }}
+          name: release-chromium-${{ needs.prepare.outputs.version }}
           path: release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip
           retention-days: 30
 
@@ -246,7 +246,7 @@ jobs:
       - name: Upload Firefox artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ needs.prepare.outputs.version }}
+          name: release-firefox-${{ needs.prepare.outputs.version }}
           path: release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi
           retention-days: 30
 
@@ -288,7 +288,7 @@ jobs:
       - name: Upload Safari artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ needs.prepare.outputs.version }}
+          name: release-safari-${{ needs.prepare.outputs.version }}
           path: release/weather-extension-safari-v${{ needs.prepare.outputs.version }}.zip
           retention-days: 30
 
@@ -303,18 +303,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Download Chromium artifact
         if: ${{ needs.prepare.outputs.has_chromium == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-packages-${{ needs.prepare.outputs.version }}
+          name: release-chromium-${{ needs.prepare.outputs.version }}
           path: release/
 
       - name: Download Firefox artifact
         if: ${{ needs.prepare.outputs.has_firefox == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-packages-${{ needs.prepare.outputs.version }}
+          name: release-firefox-${{ needs.prepare.outputs.version }}
           path: release/
 
       - name: Download Safari artifact
@@ -322,7 +323,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: release-packages-${{ needs.prepare.outputs.version }}
+          name: release-safari-${{ needs.prepare.outputs.version }}
           path: release/
 
       - name: Set release flags
