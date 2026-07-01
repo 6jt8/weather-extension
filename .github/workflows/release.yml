@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 1.0.0, v1.0.0, 1.0.0-beta.1). Leave empty to auto-detect from package.json or latest git tag.'
+        description: 'Release version. Leave empty to auto-detect from package.json or latest git tag.'
         required: false
         type: string
         default: ''
@@ -33,7 +33,7 @@ on:
           - prerelease
           - draft
       release_name:
-        description: 'Release name (optional, defaults to "Release vX.Y.Z")'
+        description: 'Release name'
         required: false
         type: string
         default: ''
