@@ -301,6 +301,8 @@ jobs:
       needs.prepare.result == 'success'
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Download Chromium artifact
         if: ${{ needs.prepare.outputs.has_chromium == 'true' }}
         uses: actions/download-artifact@v4

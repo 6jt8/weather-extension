@@ -39,7 +39,7 @@ fi
 echo "Building Xcode project..."
 cd release/WeatherExtension
 
-SCHEME=$(xcodebuild -project WeatherExtension.xcodeproj -list 2>/dev/null | awk '/Schemes:/{found=1; next} found{print $1; exit}')
+SCHEME=$(xcodebuild -project WeatherExtension.xcodeproj -list 2>/dev/null | sed -n '/Schemes:/,/^$/p' | grep -v 'Schemes:' | grep -v '^$' | head -n1 | tr -d '[:space:]')
 if [ -z "$SCHEME" ]; then
   SCHEME="WeatherExtension"
 fi
