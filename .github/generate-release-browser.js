@@ -4,11 +4,18 @@ const path = require("path");
 const releaseDir = path.join(__dirname, "release");
 
 function buildInstallManifest() {
-  return JSON.parse(fs.readFileSync(path.join(releaseDir, "build-manifest.json"), "utf8"));
+  if (!fs.existsSync(path.join(releaseDir, "build-manifest.json"))) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(path.join(releaseDir, "build-manifest.json"), "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 function buildInstallFromFilenames() {
-  const version = require(path.join(__dirname, "package.json")).version;
+  const version = require(path.join(__dirname, "..", "package.json")).version;
   const pkgs = { chromium: null, firefox: null, safari: null };
 
   if (fs.existsSync(path.join(releaseDir, `weather-extension-chromium-v${version}.zip`))) {
@@ -39,6 +46,11 @@ function buildInstallFromFilenames() {
 function generateReleaseNotes(manifest, releaseType = "release") {
   const v = manifest.version;
   const p = manifest.packages;
+
+  const hasAny = p.chromium || p.firefox || p.safari;
+  if (!hasAny) {
+    return "# Weather Extension v" + v + "\n\nNo build artifacts available for this target.\n";
+  }
 
   let md = "# Weather Extension v" + v + "\n\n";
   md += "## 📋 Release Information\n";
@@ -106,19 +118,32 @@ function generateReleaseNotes(manifest, releaseType = "release") {
 }
 
 function main() {
+  const skipNotes = process.env.SKIP_RELEASE_NOTES === "true";
+  const customChangelog = process.env.CUSTOM_CHANGELOG || "";
   const releaseType = process.env.RELEASE_TYPE || "release";
 
-  let manifest;
-  if (fs.existsSync(path.join(releaseDir, "build-manifest.json"))) {
-    manifest = buildInstallManifest();
-    console.log("📄 Read build-manifest.json");
-  } else {
+  if (skipNotes) {
+    const outPath = path.join(releaseDir, "release-notes.md");
+    fs.writeFileSync(outPath, "");
+    console.log("✅ Skipped release notes (empty file written)");
+    process.exit(0);
+  }
+
+  if (customChangelog && fs.existsSync(path.join(__dirname, "..", customChangelog))) {
+    const content = fs.readFileSync(path.join(__dirname, "..", customChangelog), "utf8");
+    fs.writeFileSync(path.join(releaseDir, "release-notes.md"), content);
+    console.log("✅ Used custom changelog: " + customChangelog);
+    process.exit(0);
+  }
+
+  let manifest = buildInstallManifest();
+  if (!manifest) {
     console.warn("⚠️  build-manifest.json not found — falling back to filename detection");
     manifest = buildInstallFromFilenames();
   }
 
-  for (const [key, pkg] of Object.entries(manifest.packages)) {
-    if (pkg && !fs.existsSync(path.join(releaseDir, pkg.filename))) {
+  for (const [key, pkg] of Object.entries(manifest.packages || {})) {
+    if (pkg && pkg.filename && !fs.existsSync(path.join(releaseDir, pkg.filename))) {
       console.warn("⚠️  Expected package not found: " + pkg.filename);
       manifest.packages[key] = null;
     }

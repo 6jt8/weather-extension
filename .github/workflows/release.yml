@@ -35,25 +35,65 @@ on:
         description: 'Release name (optional)'
         required: false
         type: string
+      attach_only:
+        description: 'Attach files to release without replacing body (uses existing release if tag exists)'
+        required: true
+        type: boolean
+        default: false
+      skip_release_notes:
+        description: 'Skip generating release notes'
+        required: true
+        type: boolean
+        default: false
+      commit_version:
+        description: 'Commit version bump back to repository'
+        required: true
+        type: boolean
+        default: true
+      changelog_path:
+        description: 'Custom changelog file path (relative to repo root)'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: release-${{ github.event.inputs.version }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
+  packages: read
+  id-token: write
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    name: Build Linux (Chromium + Firefox)
+    name: Build Linux (Chromium + Firefox + Safari source)
     outputs:
-      version: ${{ env.VERSION }}
+      version: ${{ steps.setup_version.outputs.version }}
+      has_chromium: ${{ steps.setup_target.outputs.has_chromium }}
+      has_firefox: ${{ steps.setup_target.outputs.has_firefox }}
+      has_safari: ${{ steps.setup_target.outputs.has_safari }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
@@ -64,6 +104,7 @@ jobs:
           sudo apt-get install -y jq zip
 
       - name: Setup version
+        id: setup_version
         run: |
           VERSION="${{ github.event.inputs.version }}"
           if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -71,12 +112,32 @@ jobs:
             exit 1
           fi
           VERSION="${VERSION#v}"
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "✅ Version: ${VERSION}"
+
+      - name: Setup target flags
+        id: setup_target
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "chromium" ]; then
+            echo "has_chromium=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_chromium=false" >> $GITHUB_OUTPUT
+          fi
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "firefox" ]; then
+            echo "has_firefox=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_firefox=false" >> $GITHUB_OUTPUT
+          fi
+          if [ "$TARGET" = "all" ] || [ "$TARGET" = "safari" ]; then
+            echo "has_safari=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_safari=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Update version in manifests
         run: |
-          VERSION="${{ env.VERSION }}"
+          VERSION="${{ steps.setup_version.outputs.version }}"
           if [ -f "src/manifest.json" ]; then
             jq --arg v "$VERSION" '.version = $v' src/manifest.json > src/manifest.json.tmp
             mv src/manifest.json.tmp src/manifest.json
@@ -89,17 +150,35 @@ jobs:
           fi
 
       - name: Build browser source
+        id: build
         run: |
           TARGET="${{ github.event.inputs.target }}"
           echo "🏗️  Building for target: ${TARGET}"
           node .github/build-multi-browser.js "${TARGET}"
           echo "✅ Build completed"
 
+      - name: Commit version bump
+        if: ${{ github.event.inputs.commit_version == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          CHANGED=0
+          if git diff --quiet src/manifest.json package.json; then
+            echo "ℹ️  No version changes to commit"
+          else
+            CHANGED=1
+            git add src/manifest.json package.json
+            git commit -m "chore(release): bump version to ${{ steps.setup_version.outputs.version }}"
+            git push
+            echo "✅ Version bump committed"
+          fi
+          echo "changed=${CHANGED}" >> $GITHUB_OUTPUT
+
       - name: Package Chromium ZIP
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'chromium' }}
+        if: ${{ steps.setup_target.outputs.has_chromium == 'true' }}
         run: |
           echo "📦 Creating Chromium ZIP..."
-          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ env.VERSION }}.zip"
+          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ steps.setup_version.outputs.version }}.zip"
           rm -f "$CHROMIUM_ZIP"
           for browser in chrome edge opera brave; do
             if [ -d "release/$browser" ]; then
@@ -112,14 +191,14 @@ jobs:
           echo "✅ $CHROMIUM_ZIP"
 
       - name: Package Firefox XPI
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'firefox' }}
+        if: ${{ steps.setup_target.outputs.has_firefox == 'true' }}
         run: |
           echo "📦 Creating Firefox XPI..."
           if [ -d "release/firefox" ]; then
             cd release/firefox
-            zip -r -q "../../release/weather-extension-firefox-v${{ env.VERSION }}.xpi" .
+            zip -r -q "../../release/weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi" .
             cd ../..
-            echo "✅ weather-extension-firefox-v${{ env.VERSION }}.xpi"
+            echo "✅ weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi"
           fi
 
       - name: Verify packages
@@ -127,27 +206,28 @@ jobs:
           echo "📋 Generated packages:"
           ls -lh release/*.{zip,xpi} 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}'
           echo ""
-          TARGET="${{ github.event.inputs.target }}"
-          VERSION="${{ env.VERSION }}"
+          VERSION="${{ steps.setup_version.outputs.version }}"
           ERR=0
-          if [ "$TARGET" = "all" ] || [ "$TARGET" = "chromium" ]; then
+          if [ "${{ steps.setup_target.outputs.has_chromium }}" = "true" ]; then
             [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] || { echo "❌ Missing chromium package"; ERR=1; }
           fi
-          if [ "$TARGET" = "all" ] || [ "$TARGET" = "firefox" ]; then
+          if [ "${{ steps.setup_target.outputs.has_firefox }}" = "true" ]; then
             [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] || { echo "❌ Missing firefox package"; ERR=1; }
           fi
-          if [ "$TARGET" = "all" ] || [ "$TARGET" = "safari" ]; then
+          if [ "${{ steps.setup_target.outputs.has_safari }}" = "true" ]; then
             [ -f "release/weather-extension-safari-v${VERSION}.zip" ] || { echo "❌ Missing safari package"; ERR=1; }
           fi
           [ "$ERR" -eq 0 ] || exit 1
           echo "✅ All expected packages present"
 
-      - name: Upload artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ env.VERSION }}
+          name: release-packages-${{ steps.setup_version.outputs.version }}
           path: |
-            release/*.{zip,xpi}
+            release/weather-extension-chromium-v${{ steps.setup_version.outputs.version }}.zip
+            release/weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi
+            release/weather-extension-safari-v${{ steps.setup_version.outputs.version }}.zip
             release/build-manifest.json
           retention-days: 30
 
@@ -163,15 +243,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: release-packages-${{ needs.build-linux.outputs.version }}
-          path: release/
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build Safari extension source
         run: |
-          echo "🏗️  Building Safari source..."
+          VERSION="${{ needs.build-linux.outputs.version }}"
+          echo "🏗️  Building Safari source for v${VERSION}..."
           node .github/build-multi-browser.js safari
           echo "✅ Safari source ready"
 
@@ -182,13 +265,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: safari-app-${{ needs.build-linux.outputs.version }}
-          path: release/weather-extension-safari-v*.zip
+          path: release/weather-extension-safari-v${{ needs.build-linux.outputs.version }}.zip
           retention-days: 30
 
   release:
     runs-on: ubuntu-latest
     name: Create GitHub Release
-    needs: [build-linux]
+    needs: [build-linux, build-macos-safari]
     if: |
       always() &&
       needs.build-linux.result == 'success'
@@ -209,26 +292,48 @@ jobs:
           path: release/
 
       - name: Set release flags
+        id: release_flags
         run: |
           case "${{ github.event.inputs.release_type }}" in
             draft)
-              echo "DRAFT=true" >> $GITHUB_ENV
-              echo "PRERELEASE=false" >> $GITHUB_ENV
+              echo "draft=true" >> $GITHUB_OUTPUT
+              echo "prerelease=false" >> $GITHUB_OUTPUT
               ;;
             prerelease)
-              echo "DRAFT=false" >> $GITHUB_ENV
-              echo "PRERELEASE=true" >> $GITHUB_ENV
+              echo "draft=false" >> $GITHUB_OUTPUT
+              echo "prerelease=true" >> $GITHUB_OUTPUT
               ;;
             *)
-              echo "DRAFT=false" >> $GITHUB_ENV
-              echo "PRERELEASE=false" >> $GITHUB_ENV
+              echo "draft=false" >> $GITHUB_OUTPUT
+              echo "prerelease=false" >> $GITHUB_OUTPUT
               ;;
           esac
 
-      - name: Generate release notes
-        env:
-          RELEASE_TYPE: ${{ github.event.inputs.release_type }}
-        run: node .github/generate-release-browser.js
+      - name: Determine release files
+        id: release_files
+        run: |
+          VERSION="${{ needs.build-linux.outputs.version }}"
+          FILES=""
+          if [ "${{ needs.build-linux.outputs.has_chromium }}" = "true" ] && [ -f "release/weather-extension-chromium-v${VERSION}.zip" ]; then
+            FILES="${FILES}release/weather-extension-chromium-v${VERSION}.zip "
+          fi
+          if [ "${{ needs.build-linux.outputs.has_firefox }}" = "true" ] && [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ]; then
+            FILES="${FILES}release/weather-extension-firefox-v${VERSION}.xpi "
+          fi
+          if [ "${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}" = "true" ] && [ -f "release/weather-extension-safari-v${VERSION}.zip" ]; then
+            FILES="${FILES}release/weather-extension-safari-v${VERSION}.zip "
+          fi
+          echo "files=${FILES}" >> $GITHUB_OUTPUT
+          echo "✅ Release files: ${FILES}"
+
+      - name: Set release body path
+        id: body_path
+        run: |
+          if [ "${{ github.event.inputs.skip_release_notes }}" = "true" ]; then
+            echo "path=" >> $GITHUB_OUTPUT
+          else
+            echo "path=release/release-notes.md" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create GitHub Release
         if: ${{ github.event.inputs.create_release == 'true' }}
@@ -236,15 +341,17 @@ jobs:
         with:
           tag_name: v${{ needs.build-linux.outputs.version }}
           name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', needs.build-linux.outputs.version) }}
-          body_path: release/release-notes.md
-          files: release/*.{zip,xpi}
-          draft: ${{ env.DRAFT }}
-          prerelease: ${{ env.PRERELEASE }}
+          body_path: ${{ steps.body_path.outputs.path }}
+          files: ${{ steps.release_files.outputs.files }}
+          draft: ${{ steps.release_flags.outputs.draft }}
+          prerelease: ${{ steps.release_flags.outputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
+        if: success()
         run: |
           echo "✅ Release v${{ needs.build-linux.outputs.version }}"
           echo "Target: ${{ github.event.inputs.target }}"
+          echo "Files:"
           ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'

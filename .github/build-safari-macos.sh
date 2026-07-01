@@ -45,8 +45,8 @@ if ! xcodebuild \
   -derivedDataPath build/ \
   build 2>&1; then
   echo "⚠️  Xcode build failed — falling back to raw ZIP"
-  cd ../../safari
-  zip -r -q "../$OUTPUT" .
+  cd "$SAFARI_DIR"
+  zip -r -q "../../$OUTPUT" .
   cd ../..
   echo "✅ $OUTPUT (fallback)"
   exit 0

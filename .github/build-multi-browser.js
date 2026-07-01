@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const srcDir = path.join(__dirname, "src");
+const srcDir = path.join(__dirname, "..", "src");
 const releaseDir = path.join(__dirname, "release");
 
 const CHROMIUM_BROWSERS = ["chrome", "edge", "opera", "brave"];
