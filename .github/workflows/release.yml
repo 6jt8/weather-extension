@@ -48,9 +48,9 @@ permissions:
   id-token: write
 
 jobs:
-  build-linux:
+  prepare:
     runs-on: ubuntu-latest
-    name: Build packages
+    name: Prepare source
     outputs:
       version: ${{ steps.setup_version.outputs.version }}
       has_chromium: ${{ steps.setup_target.outputs.has_chromium }}
@@ -153,7 +153,6 @@ jobs:
           fi
 
       - name: Build browser source
-        id: build
         run: |
           TARGET="${{ github.event.inputs.target }}"
           echo "Building for target: ${TARGET}"
@@ -161,7 +160,6 @@ jobs:
           echo "Build completed"
 
       - name: Commit version bump
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'chromium' || github.event.inputs.target == 'firefox' || github.event.inputs.target == 'safari' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -180,11 +178,30 @@ jobs:
           fi
           echo "changed=${CHANGED}" >> $GITHUB_OUTPUT
 
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ steps.setup_version.outputs.version }}
+          path: release/
+          retention-days: 30
+
+  package-chromium:
+    runs-on: ubuntu-latest
+    name: Package Chromium
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_chromium == 'true' }}
+
+    steps:
+      - name: Download source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: source-${{ needs.prepare.outputs.version }}
+          path: release/
+
       - name: Package Chromium ZIP
-        if: ${{ steps.setup_target.outputs.has_chromium == 'true' }}
         run: |
           echo "Creating Chromium ZIP..."
-          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ steps.setup_version.outputs.version }}.zip"
+          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip"
           rm -f "$CHROMIUM_ZIP"
           for browser in chrome edge opera brave; do
             if [ -d "release/$browser" ]; then
@@ -196,62 +213,48 @@ jobs:
           done
           echo "Created: $CHROMIUM_ZIP"
 
+      - name: Upload Chromium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-${{ needs.prepare.outputs.version }}
+          path: release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip
+          retention-days: 30
+
+  package-firefox:
+    runs-on: ubuntu-latest
+    name: Package Firefox
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_firefox == 'true' }}
+
+    steps:
+      - name: Download source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: source-${{ needs.prepare.outputs.version }}
+          path: release/
+
       - name: Package Firefox XPI
-        if: ${{ steps.setup_target.outputs.has_firefox == 'true' }}
         run: |
           echo "Creating Firefox XPI..."
           if [ -d "release/firefox" ]; then
             cd release/firefox
-            zip -r -q "../../release/weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi" .
+            zip -r -q "../../release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi" .
             cd ../..
-            echo "Created: weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi"
+            echo "Created: weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi"
           fi
 
-      - name: Verify packages
-        run: |
-          echo "Generated packages:"
-          ls -lh release/*.{zip,xpi} 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}'
-          echo ""
-          VERSION="${{ steps.setup_version.outputs.version }}"
-          ERR=0
-          if [ "${{ steps.setup_target.outputs.has_chromium }}" = "true" ]; then
-            [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] || { echo "ERROR: Missing chromium package"; ERR=1; }
-          fi
-          if [ "${{ steps.setup_target.outputs.has_firefox }}" = "true" ]; then
-            [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] || { echo "ERROR: Missing firefox package"; ERR=1; }
-          fi
-          [ "$ERR" -eq 0 ] || exit 1
-          echo "All expected packages present"
-
-      - name: Generate checksums
-        run: |
-          echo "Generating SHA256 checksums..."
-          cd release
-          sha256sum weather-extension-* > SHA256SUMS.txt 2>/dev/null || \
-            sha256sum weather-extension-* > SHA256SUMS.txt
-          cd ..
-          echo "Created: SHA256SUMS.txt"
-          cat release/SHA256SUMS.txt
-
-      - name: Upload build artifacts
+      - name: Upload Firefox artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ steps.setup_version.outputs.version }}
-          path: |
-            release/weather-extension-chromium-v${{ steps.setup_version.outputs.version }}.zip
-            release/weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi
-            release/weather-extension-safari-v${{ steps.setup_version.outputs.version }}.zip
-            release/build-manifest.json
-            release/SHA256SUMS.txt
+          name: release-packages-${{ needs.prepare.outputs.version }}
+          path: release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi
           retention-days: 30
 
-  build-macos-safari:
+  package-safari:
     runs-on: macos-latest
-    name: Build Safari macOS App
-    if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}
-    needs: build-linux
-    outputs:
-      version: ${{ needs.build-linux.outputs.version }}
+    name: Package Safari
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_safari == 'true' }}
 
     steps:
       - name: Checkout repository
@@ -273,44 +276,51 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Safari extension source
+      - name: Build Safari source
         run: |
-          VERSION="${{ needs.build-linux.outputs.version }}"
-          echo "Building Safari source for v${VERSION}..."
+          echo "Building Safari source..."
           node .github/build-multi-browser.js safari
           echo "Safari source ready"
 
       - name: Create Safari app bundle
-        run: bash .github/build-safari-macos.sh "${{ needs.build-linux.outputs.version }}"
+        run: bash .github/build-safari-macos.sh "${{ needs.prepare.outputs.version }}"
 
       - name: Upload Safari artifact
         uses: actions/upload-artifact@v4
         with:
-          name: safari-app-${{ needs.build-linux.outputs.version }}
-          path: release/weather-extension-safari-v${{ needs.build-linux.outputs.version }}.zip
+          name: release-packages-${{ needs.prepare.outputs.version }}
+          path: release/weather-extension-safari-v${{ needs.prepare.outputs.version }}.zip
           retention-days: 30
 
   release:
     runs-on: ubuntu-latest
     name: Create GitHub Release
-    needs: [build-linux]
+    needs: [prepare, package-chromium, package-firefox, package-safari]
     if: |
       always() &&
-      needs.build-linux.result == 'success'
+      needs.prepare.result == 'success'
 
     steps:
-      - name: Download Linux artifacts
+      - name: Download Chromium artifact
+        if: ${{ needs.prepare.outputs.has_chromium == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-packages-${{ needs.build-linux.outputs.version }}
+          name: release-packages-${{ needs.prepare.outputs.version }}
+          path: release/
+
+      - name: Download Firefox artifact
+        if: ${{ needs.prepare.outputs.has_firefox == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-packages-${{ needs.prepare.outputs.version }}
           path: release/
 
       - name: Download Safari artifact
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}
+        if: ${{ needs.prepare.outputs.has_safari == 'true' }}
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: safari-app-${{ needs.build-linux.outputs.version }}
+          name: release-packages-${{ needs.prepare.outputs.version }}
           path: release/
 
       - name: Set release flags
@@ -334,19 +344,16 @@ jobs:
       - name: Determine release files
         id: release_files
         run: |
-          VERSION="${{ needs.build-linux.outputs.version }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           FILES=""
-          if [ "${{ needs.build-linux.outputs.has_chromium }}" = "true" ] && [ -f "release/weather-extension-chromium-v${VERSION}.zip" ]; then
+          if [ "${{ needs.prepare.outputs.has_chromium }}" = "true" ] && [ -f "release/weather-extension-chromium-v${VERSION}.zip" ]; then
             FILES="${FILES}release/weather-extension-chromium-v${VERSION}.zip "
           fi
-          if [ "${{ needs.build-linux.outputs.has_firefox }}" = "true" ] && [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ]; then
+          if [ "${{ needs.prepare.outputs.has_firefox }}" = "true" ] && [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ]; then
             FILES="${FILES}release/weather-extension-firefox-v${VERSION}.xpi "
           fi
-          if [ "${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}" = "true" ] && [ -f "release/weather-extension-safari-v${VERSION}.zip" ]; then
+          if [ "${{ needs.prepare.outputs.has_safari }}" = "true" ] && [ -f "release/weather-extension-safari-v${VERSION}.zip" ]; then
             FILES="${FILES}release/weather-extension-safari-v${VERSION}.zip "
-          fi
-          if [ -f "release/SHA256SUMS.txt" ]; then
-            FILES="${FILES}release/SHA256SUMS.txt "
           fi
           echo "files=${FILES}" >> $GITHUB_OUTPUT
           echo "Release files: ${FILES}"
@@ -356,18 +363,13 @@ jobs:
           RELEASE_TYPE: ${{ github.event.inputs.release_type }}
         run: node .github/generate-release-browser.js
 
-      - name: Set release body path
-        id: body_path
-        run: |
-          echo "path=release/release-notes.md" >> $GITHUB_OUTPUT
-
       - name: Create GitHub Release
         if: ${{ github.event.inputs.create_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.build-linux.outputs.version }}
-          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', needs.build-linux.outputs.version) }}
-          body_path: ${{ steps.body_path.outputs.path }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', needs.prepare.outputs.version) }}
+          body_path: release/release-notes.md
           files: ${{ steps.release_files.outputs.files }}
           draft: ${{ steps.release_flags.outputs.draft }}
           prerelease: ${{ steps.release_flags.outputs.prerelease }}
@@ -377,9 +379,7 @@ jobs:
       - name: Release Summary
         if: success()
         run: |
-          echo "Release v${{ needs.build-linux.outputs.version }}"
+          echo "Release v${{ needs.prepare.outputs.version }}"
           echo "Target: ${{ github.event.inputs.target }}"
           echo "Files:"
           ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'
-          echo "Checksums:"
-          [ -f release/SHA256SUMS.txt ] && cat release/SHA256SUMS.txt || echo "  (none)"

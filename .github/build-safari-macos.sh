@@ -38,9 +38,15 @@ fi
 
 echo "Building Xcode project..."
 cd release/WeatherExtension
+
+SCHEME=$(xcodebuild -project WeatherExtension.xcodeproj -list 2>/dev/null | awk '/Schemes:/{found=1; next} found{print $1; exit}')
+if [ -z "$SCHEME" ]; then
+  SCHEME="WeatherExtension"
+fi
+
 if ! xcodebuild \
   -project WeatherExtension.xcodeproj \
-  -scheme WeatherExtension \
+  -scheme "$SCHEME" \
   -configuration Release \
   -derivedDataPath build/ \
   build 2>&1; then
