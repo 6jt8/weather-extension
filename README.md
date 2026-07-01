@@ -8,7 +8,7 @@
 
 [![Release](https://img.shields.io/github/v/release/6jt8/weather-extension?style=flat-square&color=4a90b8)](https://github.com/6jt8/weather-extension/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![Languages](https://img.shields.io/badge/languages-25-blue?style=flat-square)](src/locales/)
+[![Languages](https://img.shields.io/badge/languages-24-blue?style=flat-square)](src/locales/)
 [![Stars](https://img.shields.io/github/stars/6jt8/weather-extension?style=flat-square&color=fbbf24)](https://github.com/6jt8/weather-extension/stargazers)
 
 *A project by [horror69dev](https://github.com/horror69dev) & [6jt8](https://github.com/6jt8)*
@@ -19,7 +19,7 @@
 
 - **Current weather** - Temperature, condition, humidity & wind
 - **7-day forecast** - Today + next 6 days
-- **25 languages** - Select in the popup, saved automatically
+- **24 languages** - Select in the popup, saved automatically
 - **Location detection** - Automatic via geolocation or IP
 - **Favorites** - Save and quickly load locations
 - **Unit toggle** - Celsius / Fahrenheit (persisted)
@@ -45,7 +45,7 @@ This release provides **three packages** for all supported browsers:
 ### Why this structure?
 
 - **Chromium browsers** (Chrome, Edge, Opera, Brave) share the same extension format (Manifest V3) — one ZIP works for all.
-- **Firefox** uses Manifest V2 and requires a signed `.xpi` for installation.
+- **Firefox** uses Manifest V3 and requires a signed `.xpi` for installation.
 - **Safari** requires a native macOS `.app` bundle for distribution — the Safari ZIP contains the converted app built with `safari-web-extension-converter`.
 
 ## Installation
@@ -103,13 +103,21 @@ Load the `src/` folder as an unpacked extension in your browser for development.
 ### Build release packages locally
 
 ```bash
+# Install dependencies first
+npm install
+
 # Build all targets
-node build-multi-browser.js all
+node build/build.mjs all
 
 # Build specific target
-node build-multi-browser.js chromium
-node build-multi-browser.js firefox
-node build-multi-browser.js safari
+node build/build.mjs chromium
+node build/build.mjs firefox
+node build/build.mjs safari
+```
+
+Or use the npm script:
+```bash
+npm run build
 ```
 
 See [Package Structure](#package-structure) above for details on the output artifacts.
@@ -130,8 +138,9 @@ Manual via **GitHub Actions** → [Release Build](../../actions/workflows/releas
 
 | Job | Runner | Output |
 |:---|:---|:---|
-| `build-linux` | `ubuntu-latest` | `weather-extension-chromium-v*.zip`, `weather-extension-firefox-v*.xpi` |
-| `build-macos-safari` | `macos-latest` | `weather-extension-safari-v*.zip` (contains `.app`) |
+| `package-chromium` | `ubuntu-latest` | `weather-extension-chromium-v*.zip` |
+| `package-firefox` | `ubuntu-latest` | `weather-extension-firefox-v*.xpi` |
+| `package-safari` | `macos-latest` | `weather-extension-safari-v*.zip` (contains `.app`) |
 | `release` | `ubuntu-latest` | GitHub Release with all packages |
 
 ## API

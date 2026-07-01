@@ -1,42 +1,44 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const srcDir = path.join(__dirname, "src");
-const releaseDir = path.join(__dirname, "release");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, "..");
+const srcDir = path.join(rootDir, "src");
+const releaseDir = path.join(rootDir, "release");
 
-const CHROMIUM_BROWSERS = ["chrome", "edge", "opera", "brave"];
-const SAFARI_BROWSER = "safari";
+const CHROMIUM_BROWSER = "chromium";
 const FIREFOX_BROWSER = "firefox";
-
+const SAFARI_BROWSER = "safari";
 const VALID_TARGETS = ["chromium", "firefox", "safari", "all"];
 
 function parseTarget(arg) {
   const target = (arg || "all").toLowerCase();
   if (!VALID_TARGETS.includes(target)) {
-    console.error(`❌ Unknown target: ${arg}`);
-    console.error(`   Valid targets: ${VALID_TARGETS.join(", ")}`);
+    console.error(`Unknown target: ${arg}`);
+    console.error(`  Valid targets: ${VALID_TARGETS.join(", ")}`);
     process.exit(1);
   }
-  if (target === "all") return [...CHROMIUM_BROWSERS, FIREFOX_BROWSER, SAFARI_BROWSER];
-  if (target === "chromium") return [...CHROMIUM_BROWSERS];
+  if (target === "all") return [CHROMIUM_BROWSER, FIREFOX_BROWSER, SAFARI_BROWSER];
+  if (target === "chromium") return [CHROMIUM_BROWSER];
   if (target === "firefox") return [FIREFOX_BROWSER];
   if (target === "safari") return [SAFARI_BROWSER];
 }
 
 async function buildIcons(iconsSrc, iconsDest) {
   if (!fs.existsSync(iconsSrc)) {
-    console.warn("⚠️  Icons directory not found:", iconsSrc);
+    console.warn("Icons directory not found:", iconsSrc);
     return;
   }
 
   fs.mkdirSync(iconsDest, { recursive: true });
   const svgFiles = fs.readdirSync(iconsSrc).filter(f => f.endsWith(".svg"));
 
-  let sharp = null;
+  let sharp;
   try {
-    sharp = require("sharp");
+    sharp = await import("sharp");
   } catch {
-    console.warn("⚠️  sharp not installed - skipping PNG generation");
+    console.warn("  sharp not installed — skipping PNG generation. Run: npm install");
   }
 
   for (const svg of svgFiles) {
@@ -44,26 +46,26 @@ async function buildIcons(iconsSrc, iconsDest) {
     const baseName = path.basename(svg, ".svg");
 
     fs.copyFileSync(svgPath, path.join(iconsDest, svg));
-    console.log(`  ✓ Copied: ${svg}`);
+    console.log(`  Copied: ${svg}`);
 
     if (sharp) {
       const svgBuffer = fs.readFileSync(svgPath);
       for (const size of [16, 48, 128]) {
         try {
-          const pngBuffer = await sharp(svgBuffer).resize(size, size).png().toBuffer();
+          const pngBuffer = await sharp.default(svgBuffer).resize(size, size).png().toBuffer();
           fs.writeFileSync(path.join(iconsDest, `${baseName}-${size}.png`), pngBuffer);
-          console.log(`  ✓ Generated: ${baseName}-${size}.png`);
+          console.log(`  Generated: ${baseName}-${size}.png`);
         } catch (e) {
-          console.warn(`  ⚠️  Failed to generate PNG: ${baseName}-${size}.png`, e.message);
+          console.warn(`  Failed to generate PNG: ${baseName}-${size}.png`, e.message);
         }
       }
     }
   }
 }
 
-async function buildLocales(localesSrc, localesDest) {
+function buildLocales(localesSrc, localesDest) {
   if (!fs.existsSync(localesSrc)) {
-    console.warn("⚠️  Locales directory not found:", localesSrc);
+    console.warn("Locales directory not found:", localesSrc);
     return;
   }
 
@@ -72,30 +74,32 @@ async function buildLocales(localesSrc, localesDest) {
 
   for (const file of localeFiles) {
     fs.copyFileSync(path.join(localesSrc, file), path.join(localesDest, file));
-    console.log(`  ✓ Copied locale: ${file}`);
+    console.log(`  Copied locale: ${file}`);
   }
 }
 
 async function buildForBrowser(browser, baseDir) {
   const buildDir = path.join(baseDir, browser);
-  console.log(`\n📦 Building for ${browser.toUpperCase()}...`);
+  console.log(`\nBuilding for ${browser.toUpperCase()}...`);
 
   if (fs.existsSync(buildDir)) {
     fs.rmSync(buildDir, { recursive: true });
   }
   fs.mkdirSync(buildDir, { recursive: true });
 
-  const baseFiles = ["popup.html", "popup.css", "popup.js", "background.js", "content.js"];
+  const baseFiles = ["popup.html", "popup.css", "popup.js"];
   for (const file of baseFiles) {
     const srcFile = path.join(srcDir, file);
     if (fs.existsSync(srcFile)) {
       fs.copyFileSync(srcFile, path.join(buildDir, file));
-      console.log(`  ✓ Copied: ${file}`);
+      console.log(`  Copied: ${file}`);
+    } else {
+      console.warn(`  Missing: ${file} — skipping`);
     }
   }
 
   await buildIcons(path.join(srcDir, "icons"), path.join(buildDir, "icons"));
-  await buildLocales(path.join(srcDir, "locales"), path.join(buildDir, "locales"));
+  buildLocales(path.join(srcDir, "locales"), path.join(buildDir, "locales"));
 
   const baseManifest = JSON.parse(fs.readFileSync(path.join(srcDir, "manifest.json"), "utf8"));
   const manifest = generateManifest(baseManifest, browser);
@@ -104,33 +108,19 @@ async function buildForBrowser(browser, baseDir) {
     path.join(buildDir, "manifest.json"),
     JSON.stringify(manifest, null, 2)
   );
-  console.log(`  ✓ Generated manifest for ${browser}`);
+  console.log(`  Generated manifest for ${browser}`);
 }
 
 function generateManifest(base, browser) {
-  let manifest = JSON.parse(JSON.stringify(base));
+  const manifest = JSON.parse(JSON.stringify(base));
 
   switch (browser) {
-    case "chrome":
-    case "edge":
-    case "brave":
-    case "opera":
+    case "chromium":
       manifest.manifest_version = 3;
-      if (browser === "edge") {
-        manifest.minimum_chrome_version = "90";
-      } else if (browser === "brave") {
-        manifest.minimum_chrome_version = "91";
-      } else if (browser === "opera") {
-        manifest.minimum_chrome_version = "89";
-      }
       break;
 
     case "firefox":
-      manifest.manifest_version = 2;
-      manifest.browser_action = manifest.action;
-      delete manifest.action;
-      manifest.permissions = (manifest.permissions || []).concat(manifest.host_permissions || []);
-      delete manifest.host_permissions;
+      manifest.manifest_version = 3;
       manifest.browser_specific_settings = {
         gecko: {
           id: "weather-extension@horror69dev",
@@ -143,7 +133,7 @@ function generateManifest(base, browser) {
       manifest.manifest_version = 3;
       manifest.browser_specific_settings = {
         safari: {
-          "minimum_version": "14"
+          minimum_version: "14"
         }
       };
       break;
@@ -152,7 +142,7 @@ function generateManifest(base, browser) {
   return manifest;
 }
 
-async function build() {
+async function main() {
   const targetArg = process.argv[2];
   const browsers = parseTarget(targetArg);
 
@@ -178,7 +168,7 @@ async function build() {
     await buildForBrowser(browser, releaseDir);
   }
 
-  const hasChromium = browsers.some(b => CHROMIUM_BROWSERS.includes(b));
+  const hasChromium = browsers.includes(CHROMIUM_BROWSER);
   const hasFirefox = browsers.includes(FIREFOX_BROWSER);
   const hasSafari = browsers.includes(SAFARI_BROWSER);
 
@@ -186,8 +176,7 @@ async function build() {
     buildManifest.packages.chromium = {
       filename: `weather-extension-chromium-v${version}.zip`,
       format: "zip",
-      manifest_version: 3,
-      browsers: CHROMIUM_BROWSERS.filter(b => browsers.includes(b))
+      manifest_version: 3
     };
   }
 
@@ -195,7 +184,7 @@ async function build() {
     buildManifest.packages.firefox = {
       filename: `weather-extension-firefox-v${version}.xpi`,
       format: "xpi",
-      manifest_version: 2
+      manifest_version: 3
     };
   }
 
@@ -212,9 +201,9 @@ async function build() {
     path.join(releaseDir, "build-manifest.json"),
     JSON.stringify(buildManifest, null, 2)
   );
-  console.log(`\n✅ Wrote build-manifest.json`);
+  console.log(`Wrote build-manifest.json`);
 
-  console.log("\n✅ All builds completed!");
+  console.log("\nAll builds completed!");
   console.log("\nBuild directories:");
   for (const browser of browsers) {
     console.log(`  - ${browser}: ${path.join(releaseDir, browser)}`);
@@ -225,7 +214,7 @@ async function build() {
   if (buildManifest.packages.safari) console.log(`  - ${buildManifest.packages.safari.filename}`);
 }
 
-build().catch(err => {
-  console.error("❌ Build failed:", err);
+main().catch(err => {
+  console.error("Build failed:", err);
   process.exit(1);
 });
