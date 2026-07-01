@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 1.2.0)'
-        required: true
+        description: '[Required] Release version (e.g. 1.0.0, v1.0.0, 1.0.0-beta.1). Leave empty if auto_detect_version=true.'
+        required: false
         type: string
+        default: ''
       target:
-        description: 'Build target'
+        description: '[Build] Build target'
         required: true
         type: choice
         default: 'all'
@@ -18,12 +19,12 @@ on:
           - safari
           - all
       create_release:
-        description: 'Create GitHub release'
+        description: '[Release] Create GitHub release'
         required: true
         type: boolean
         default: true
       release_type:
-        description: 'Release type'
+        description: '[Release] Release type'
         required: true
         type: choice
         default: 'release'
@@ -32,29 +33,60 @@ on:
           - prerelease
           - draft
       release_name:
-        description: 'Release name (optional)'
+        description: '[Release] Release name (optional, defaults to "Release vX.Y.Z")'
         required: false
         type: string
+        default: ''
       attach_only:
-        description: 'Attach files to release without replacing body (uses existing release if tag exists)'
+        description: '[Release] Attach files to existing release without replacing body (requires existing tag)'
         required: true
         type: boolean
         default: false
       skip_release_notes:
-        description: 'Skip generating release notes'
+        description: '[Release] Skip generating release notes'
         required: true
         type: boolean
         default: false
       commit_version:
-        description: 'Commit version bump back to repository'
+        description: '[Advanced] Commit version bump back to repository'
         required: true
         type: boolean
         default: true
       changelog_path:
-        description: 'Custom changelog file path (relative to repo root)'
+        description: '[Advanced] Custom changelog file path (relative to repo root, e.g. CHANGELOG.md)'
         required: false
         type: string
         default: ''
+      dry_run:
+        description: '[Advanced] Build packages but do not create/update release'
+        required: true
+        type: boolean
+        default: false
+      skip_build_verification:
+        description: '[Advanced] Skip post-build package verification'
+        required: true
+        type: boolean
+        default: false
+      generate_checksums:
+        description: '[Advanced] Generate SHA256 checksums for all packages'
+        required: true
+        type: boolean
+        default: true
+      auto_detect_version:
+        description: '[Advanced] Auto-detect version from package.json or latest git tag if version input is empty'
+        required: true
+        type: boolean
+        default: false
+      merge_to_nightly:
+        description: '[Advanced] Merge version bump commit into nightly branch'
+        required: true
+        type: boolean
+        default: false
+      notarize_safari:
+        description: '[Advanced] Notarize Safari app on macOS (requires Apple Developer secrets)'
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.event.inputs.version }}
@@ -106,14 +138,37 @@ jobs:
       - name: Setup version
         id: setup_version
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Invalid version format. Expected: X.Y.Z or vX.Y.Z"
+          RAW_VERSION="${{ github.event.inputs.version }}"
+          AUTO_DETECT="${{ github.event.inputs.auto_detect_version }}"
+
+          if [ -z "$RAW_VERSION" ] && [ "$AUTO_DETECT" = "true" ]; then
+            echo "Auto-detecting version..."
+            if [ -f "package.json" ]; then
+              RAW_VERSION=$(jq -r '.version' package.json)
+              echo "  Found version in package.json: ${RAW_VERSION}"
+            fi
+            if [ -z "$RAW_VERSION" ] || [ "$RAW_VERSION" = "null" ]; then
+              RAW_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "")
+              if [ -n "$RAW_VERSION" ]; then
+                echo "  Found version from latest git tag: ${RAW_VERSION}"
+              fi
+            fi
+          fi
+
+          if [ -z "$RAW_VERSION" ]; then
+            echo "ERROR: Version is required. Provide version input or enable auto_detect_version."
             exit 1
           fi
-          VERSION="${VERSION#v}"
+
+          if [[ ! "$RAW_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "ERROR: Invalid version format: ${RAW_VERSION}"
+            echo "  Expected: X.Y.Z, vX.Y.Z, X.Y.Z-beta.1, or X.Y.Z+build.123"
+            exit 1
+          fi
+
+          VERSION="${RAW_VERSION#v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "✅ Version: ${VERSION}"
+          echo "Version ready: ${VERSION}"
 
       - name: Setup target flags
         id: setup_target
@@ -141,43 +196,63 @@ jobs:
           if [ -f "src/manifest.json" ]; then
             jq --arg v "$VERSION" '.version = $v' src/manifest.json > src/manifest.json.tmp
             mv src/manifest.json.tmp src/manifest.json
-            echo "✅ Updated src/manifest.json"
+            echo "Updated src/manifest.json"
           fi
           if [ -f "package.json" ]; then
             jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
             mv package.json.tmp package.json
-            echo "✅ Updated package.json"
+            echo "Updated package.json"
           fi
 
       - name: Build browser source
         id: build
         run: |
           TARGET="${{ github.event.inputs.target }}"
-          echo "🏗️  Building for target: ${TARGET}"
+          echo "Building for target: ${TARGET}"
           node .github/build-multi-browser.js "${TARGET}"
-          echo "✅ Build completed"
+          echo "Build completed"
 
       - name: Commit version bump
         if: ${{ github.event.inputs.commit_version == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           CHANGED=0
           if git diff --quiet src/manifest.json package.json; then
-            echo "ℹ️  No version changes to commit"
+            echo "No version changes to commit"
           else
             CHANGED=1
             git add src/manifest.json package.json
             git commit -m "chore(release): bump version to ${{ steps.setup_version.outputs.version }}"
-            git push
-            echo "✅ Version bump committed"
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            git push origin HEAD:${{ github.ref_name }}
+            echo "Version bump committed"
           fi
           echo "changed=${CHANGED}" >> $GITHUB_OUTPUT
+
+      - name: Merge version bump to nightly
+        if: ${{ github.event.inputs.merge_to_nightly == 'true' && github.event.inputs.commit_version == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git branch -r | grep -q "origin/nightly"; then
+            git fetch origin nightly
+            git checkout -b nightly origin/nightly
+            git merge --no-ff ${{ github.ref_name }} -m "chore(release): merge v${{ steps.setup_version.outputs.version }} bump to nightly"
+            git push origin HEAD:nightly
+            echo "Merged into nightly"
+          else
+            echo "No nightly branch found, skipping merge"
+          fi
 
       - name: Package Chromium ZIP
         if: ${{ steps.setup_target.outputs.has_chromium == 'true' }}
         run: |
-          echo "📦 Creating Chromium ZIP..."
+          echo "Creating Chromium ZIP..."
           CHROMIUM_ZIP="release/weather-extension-chromium-v${{ steps.setup_version.outputs.version }}.zip"
           rm -f "$CHROMIUM_ZIP"
           for browser in chrome edge opera brave; do
@@ -188,37 +263,49 @@ jobs:
               cd ../..
             fi
           done
-          echo "✅ $CHROMIUM_ZIP"
+          echo "Created: $CHROMIUM_ZIP"
 
       - name: Package Firefox XPI
         if: ${{ steps.setup_target.outputs.has_firefox == 'true' }}
         run: |
-          echo "📦 Creating Firefox XPI..."
+          echo "Creating Firefox XPI..."
           if [ -d "release/firefox" ]; then
             cd release/firefox
             zip -r -q "../../release/weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi" .
             cd ../..
-            echo "✅ weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi"
+            echo "Created: weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi"
           fi
 
       - name: Verify packages
+        if: ${{ github.event.inputs.skip_build_verification != 'true' }}
         run: |
-          echo "📋 Generated packages:"
+          echo "Generated packages:"
           ls -lh release/*.{zip,xpi} 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}'
           echo ""
           VERSION="${{ steps.setup_version.outputs.version }}"
           ERR=0
           if [ "${{ steps.setup_target.outputs.has_chromium }}" = "true" ]; then
-            [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] || { echo "❌ Missing chromium package"; ERR=1; }
+            [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] || { echo "ERROR: Missing chromium package"; ERR=1; }
           fi
           if [ "${{ steps.setup_target.outputs.has_firefox }}" = "true" ]; then
-            [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] || { echo "❌ Missing firefox package"; ERR=1; }
+            [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] || { echo "ERROR: Missing firefox package"; ERR=1; }
           fi
           if [ "${{ steps.setup_target.outputs.has_safari }}" = "true" ]; then
-            [ -f "release/weather-extension-safari-v${VERSION}.zip" ] || { echo "❌ Missing safari package"; ERR=1; }
+            [ -f "release/weather-extension-safari-v${VERSION}.zip" ] || { echo "ERROR: Missing safari package"; ERR=1; }
           fi
           [ "$ERR" -eq 0 ] || exit 1
-          echo "✅ All expected packages present"
+          echo "All expected packages present"
+
+      - name: Generate checksums
+        if: ${{ github.event.inputs.generate_checksums == 'true' }}
+        run: |
+          echo "Generating SHA256 checksums..."
+          cd release
+          sha256sum weather-extension-* > SHA256SUMS.txt 2>/dev/null || \
+            sha256sum weather-extension-* > SHA256SUMS.txt
+          cd ..
+          echo "Created: SHA256SUMS.txt"
+          cat release/SHA256SUMS.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -229,6 +316,7 @@ jobs:
             release/weather-extension-firefox-v${{ steps.setup_version.outputs.version }}.xpi
             release/weather-extension-safari-v${{ steps.setup_version.outputs.version }}.zip
             release/build-manifest.json
+            release/SHA256SUMS.txt
           retention-days: 30
 
   build-macos-safari:
@@ -248,15 +336,23 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build Safari extension source
         run: |
           VERSION="${{ needs.build-linux.outputs.version }}"
-          echo "🏗️  Building Safari source for v${VERSION}..."
+          echo "Building Safari source for v${VERSION}..."
           node .github/build-multi-browser.js safari
-          echo "✅ Safari source ready"
+          echo "Safari source ready"
 
       - name: Create Safari app bundle
         run: bash .github/build-safari-macos.sh "${{ needs.build-linux.outputs.version }}"
@@ -271,10 +367,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     name: Create GitHub Release
-    needs: [build-linux, build-macos-safari]
+    needs: [build-linux]
     if: |
       always() &&
-      needs.build-linux.result == 'success'
+      needs.build-linux.result == 'success' &&
+      github.event.inputs.dry_run != 'true'
 
     steps:
       - name: Download Linux artifacts
@@ -323,20 +420,33 @@ jobs:
           if [ "${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'safari' }}" = "true" ] && [ -f "release/weather-extension-safari-v${VERSION}.zip" ]; then
             FILES="${FILES}release/weather-extension-safari-v${VERSION}.zip "
           fi
+          if [ -f "release/SHA256SUMS.txt" ]; then
+            FILES="${FILES}release/SHA256SUMS.txt "
+          fi
           echo "files=${FILES}" >> $GITHUB_OUTPUT
-          echo "✅ Release files: ${FILES}"
+          echo "Release files: ${FILES}"
+
+      - name: Generate release notes
+        if: ${{ github.event.inputs.skip_release_notes != 'true' && github.event.inputs.attach_only != 'true' }}
+        env:
+          RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+          CUSTOM_CHANGELOG: ${{ github.event.inputs.changelog_path }}
+          ATTACH_ONLY: ${{ github.event.inputs.attach_only }}
+        run: node .github/generate-release-browser.js
 
       - name: Set release body path
         id: body_path
         run: |
           if [ "${{ github.event.inputs.skip_release_notes }}" = "true" ]; then
             echo "path=" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.attach_only }}" = "true" ]; then
+            echo "path=" >> $GITHUB_OUTPUT
           else
             echo "path=release/release-notes.md" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.create_release == 'true' }}
+        if: ${{ github.event.inputs.create_release == 'true' && github.event.inputs.attach_only != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.build-linux.outputs.version }}
@@ -348,10 +458,42 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Release Summary
-        if: success()
+      - name: Attach files to existing release
+        if: ${{ github.event.inputs.create_release == 'true' && github.event.inputs.attach_only == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build-linux.outputs.version }}
+          files: ${{ steps.release_files.outputs.files }}
+          draft: ${{ steps.release_flags.outputs.draft }}
+          prerelease: ${{ steps.release_flags.outputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dry run summary
+        if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
-          echo "✅ Release v${{ needs.build-linux.outputs.version }}"
+          echo "Dry run mode -- no release created"
+          echo "Version: ${{ needs.build-linux.outputs.version }}"
+          echo "Target: ${{ github.event.inputs.target }}"
+          echo "Files that would be released:"
+          ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'
+          echo "Checksums:"
+          [ -f release/SHA256SUMS.txt ] && cat release/SHA256SUMS.txt || echo "  (none)"
+
+      - name: Release Summary
+        if: ${{ github.event.inputs.dry_run != 'true' && success() }}
+        run: |
+          echo "Release v${{ needs.build-linux.outputs.version }}"
+          echo "Target: ${{ github.event.inputs.target }}"
+          echo "Files:"
+          ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'
+          echo "Checksums:"
+          [ -f release/SHA256SUMS.txt ] && cat release/SHA256SUMS.txt || echo "  (none)"
+
+      - name: Release Summary
+        if: ${{ github.event.inputs.dry_run != 'true' && success() }}
+        run: |
+          echo "Release v${{ needs.build-linux.outputs.version }}"
           echo "Target: ${{ github.event.inputs.target }}"
           echo "Files:"
           ls -1 release/*.{zip,xpi} 2>/dev/null | sed 's/^/  /'
