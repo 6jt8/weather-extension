@@ -22,7 +22,7 @@ function buildInstallManifest() {
 }
 
 function buildInstallFromFilenames() {
-  const version = require(path.join(__dirname, "..", "..", "package.json")).version;
+  const version = require(path.join(__dirname, "..", "package.json")).version;
   const pkgs = { chromium: null, firefox: null, safari: null };
 
   if (fs.existsSync(path.join(releaseDir, `weather-extension-chromium-v${version}.zip`))) {
