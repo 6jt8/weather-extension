@@ -1,10 +1,13 @@
 name: Release Build
 
 on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version. Leave empty to auto-detect from package.json or latest git tag.'
+      tag_name:
+        description: 'Git tag to release (e.g. v1.0.0 or v1.0.0-beta).'
         required: false
         type: string
         default: ''
@@ -18,11 +21,6 @@ on:
           - firefox
           - safari
           - all
-      create_release:
-        description: 'Create GitHub release'
-        required: true
-        type: boolean
-        default: true
       release_type:
         description: 'Release type'
         required: true
@@ -33,13 +31,13 @@ on:
           - prerelease
           - draft
       release_name:
-        description: 'Release name'
+        description: 'Release name (empty = auto)'
         required: false
         type: string
         default: ''
 
 concurrency:
-  group: release-${{ github.event.inputs.version || github.ref_name }}
+  group: release-${{ github.ref_name || inputs.tag_name }}
   cancel-in-progress: true
 
 permissions:
@@ -47,12 +45,16 @@ permissions:
   packages: read
   id-token: write
 
+env:
+  TARGET: ${{ inputs.target || 'all' }}
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
     name: Prepare source
     outputs:
-      version: ${{ steps.setup_version.outputs.version }}
+      version_tag: ${{ steps.setup_version.outputs.version_tag }}
+      version_base: ${{ steps.setup_version.outputs.version_base }}
       has_chromium: ${{ steps.setup_target.outputs.has_chromium }}
       has_firefox: ${{ steps.setup_target.outputs.has_firefox }}
       has_safari: ${{ steps.setup_target.outputs.has_safari }}
@@ -62,7 +64,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -81,96 +82,54 @@ jobs:
       - name: Setup version
         id: setup_version
         run: |
-          RAW_VERSION="${{ github.event.inputs.version }}"
-
-          if [ -z "$RAW_VERSION" ]; then
-            if [ -f "package.json" ]; then
-              RAW_VERSION=$(node -e "console.log(require('./package.json').version)")
-              echo "  Found version in package.json: ${RAW_VERSION}"
-            fi
-            if [ -z "$RAW_VERSION" ] || [ "$RAW_VERSION" = "null" ]; then
-              RAW_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "")
-              if [ -n "$RAW_VERSION" ]; then
-                echo "  Found version from latest git tag: ${RAW_VERSION}"
-              fi
-            fi
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            RAW="${{ github.ref_name }}"
+          elif [ -n "${{ inputs.tag_name }}" ]; then
+            RAW="${{ inputs.tag_name }}"
+          else
+            RAW=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           fi
 
-          if [ -z "$RAW_VERSION" ]; then
-            echo "ERROR: Version is required. Provide version input or ensure package.json has a version."
+          if [ -z "$RAW" ]; then
+            echo "ERROR: No version found. Push a tag (vX.Y.Z) or provide tag_name input."
             exit 1
           fi
 
-          if [[ ! "$RAW_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
-            echo "ERROR: Invalid version format: ${RAW_VERSION}"
-            echo "  Expected: X.Y.Z, vX.Y.Z, X.Y.Z-beta.1, or X.Y.Z+build.123"
+          # Strip leading v
+          TAG="${RAW#v}"
+
+          # Validate semver-ish (must be X.Y.Z at minimum, optional -prerelease suffix)
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "ERROR: Invalid tag format: ${RAW}"
+            echo "  Expected: v1.0.0 or v1.0.0-beta or v1.0.0-beta.1"
             exit 1
           fi
 
-          VERSION="${RAW_VERSION#v}"
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Version ready: ${VERSION}"
+          # Extract base version (strip -prerelease)
+          BASE="${TAG%%-*}"
+          echo "version_tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version_base=${BASE}" >> $GITHUB_OUTPUT
+          echo "Tag: ${TAG} | Base: ${BASE}"
 
       - name: Setup target flags
         id: setup_target
         run: |
-          TARGET="${{ github.event.inputs.target }}"
+          TARGET="${{ env.TARGET }}"
           echo "has_chromium=$([ "$TARGET" = "all" ] || [ "$TARGET" = "chromium" ] && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "has_firefox=$([ "$TARGET" = "all" ] || [ "$TARGET" = "firefox" ] && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "has_safari=$([ "$TARGET" = "all" ] || [ "$TARGET" = "safari" ] && echo true || echo false)" >> $GITHUB_OUTPUT
 
-      - name: Update version in manifests
-        run: |
-          VERSION="${{ steps.setup_version.outputs.version }}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '$VERSION';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            const manifestPath = 'src/manifest.json';
-            if (fs.existsSync(manifestPath)) {
-              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-              manifest.version = '$VERSION';
-              fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-            }
-          "
-          echo "Updated package.json and src/manifest.json to $VERSION"
-
       - name: Build browser source
         run: |
-          TARGET="${{ github.event.inputs.target }}"
-          echo "Building for target: ${TARGET}"
-          node build/build.mjs "${TARGET}"
-          echo "Build completed"
-
-      - name: Commit version bump
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          VERSION="${{ steps.setup_version.outputs.version }}"
-          CHANGED=0
-          if git diff --quiet src/manifest.json package.json; then
-            echo "No version changes to commit"
-          else
-            CHANGED=1
-            git add src/manifest.json package.json
-            git commit -m "chore(release): bump version to $VERSION"
-            git tag "v$VERSION"
-            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-            git push origin HEAD:${{ github.ref_name }}
-            git push origin "v$VERSION"
-            echo "Version bump and tag pushed"
-          fi
-          echo "changed=${CHANGED}" >> $GITHUB_OUTPUT
+          echo "Building for target: ${{ env.TARGET }}"
+          node build/build.mjs "${{ env.TARGET }}"
 
       - name: Upload source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: source-${{ steps.setup_version.outputs.version }}
+          name: source-${{ steps.setup_version.outputs.version_tag }}
           path: release/
-          retention-days: 30
+          retention-days: 7
 
   package-chromium:
     runs-on: ubuntu-latest
@@ -182,17 +141,17 @@ jobs:
       - name: Download source artifact
         uses: actions/download-artifact@v4
         with:
-          name: source-${{ needs.prepare.outputs.version }}
+          name: source-${{ needs.prepare.outputs.version_tag }}
           path: release/
 
       - name: Package Chromium ZIP
         run: |
-          echo "Creating Chromium ZIP..."
-          CHROMIUM_ZIP="release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip"
-          rm -f "$CHROMIUM_ZIP"
+          B="${{ needs.prepare.outputs.version_base }}"
+          ZIP="release/weather-extension-chromium-v${B}.zip"
+          rm -f "$ZIP"
           if [ -d "release/chromium" ]; then
-            (cd "release/chromium" && zip -r -q "../../$CHROMIUM_ZIP" .)
-            echo "Created: $CHROMIUM_ZIP"
+            (cd "release/chromium" && zip -r -q "../../$ZIP" .)
+            echo "Created: $ZIP"
           else
             echo "ERROR: chromium build directory not found"
             exit 1
@@ -200,18 +159,20 @@ jobs:
 
       - name: Verify Chromium package
         run: |
-          if [ ! -f "release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip" ]; then
+          B="${{ needs.prepare.outputs.version_base }}"
+          ZIP="release/weather-extension-chromium-v${B}.zip"
+          if [ ! -f "$ZIP" ]; then
             echo "ERROR: Chromium ZIP was not created"
             exit 1
           fi
-          echo "Chromium package size: $(stat --format=%s "release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip") bytes"
+          echo "Chromium package size: $(stat --format=%s "$ZIP") bytes"
 
       - name: Upload Chromium artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-chromium-${{ needs.prepare.outputs.version }}
-          path: release/weather-extension-chromium-v${{ needs.prepare.outputs.version }}.zip
-          retention-days: 30
+          name: release-chromium-${{ needs.prepare.outputs.version_tag }}
+          path: release/weather-extension-chromium-v${{ needs.prepare.outputs.version_base }}.zip
+          retention-days: 7
 
   package-firefox:
     runs-on: ubuntu-latest
@@ -223,31 +184,32 @@ jobs:
       - name: Download source artifact
         uses: actions/download-artifact@v4
         with:
-          name: source-${{ needs.prepare.outputs.version }}
+          name: source-${{ needs.prepare.outputs.version_tag }}
           path: release/
 
       - name: Package Firefox XPI
         run: |
-          echo "Creating Firefox XPI..."
+          B="${{ needs.prepare.outputs.version_base }}"
           if [ -d "release/firefox" ]; then
-            (cd release/firefox && zip -r -q "../../release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi" .)
-            echo "Created: weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi"
+            (cd release/firefox && zip -r -q "../../release/weather-extension-firefox-v${B}.xpi" .)
+            echo "Created: weather-extension-firefox-v${B}.xpi"
           fi
 
       - name: Verify Firefox package
         run: |
-          if [ ! -f "release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi" ]; then
+          B="${{ needs.prepare.outputs.version_base }}"
+          if [ ! -f "release/weather-extension-firefox-v${B}.xpi" ]; then
             echo "ERROR: Firefox XPI was not created"
             exit 1
           fi
-          echo "Firefox package size: $(stat --format=%s "release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi") bytes"
+          echo "Firefox package size: $(stat --format=%s "release/weather-extension-firefox-v${B}.xpi") bytes"
 
       - name: Upload Firefox artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-firefox-${{ needs.prepare.outputs.version }}
-          path: release/weather-extension-firefox-v${{ needs.prepare.outputs.version }}.xpi
-          retention-days: 30
+          name: release-firefox-${{ needs.prepare.outputs.version_tag }}
+          path: release/weather-extension-firefox-v${{ needs.prepare.outputs.version_base }}.xpi
+          retention-days: 7
 
   package-safari:
     runs-on: macos-latest
@@ -262,24 +224,24 @@ jobs:
       - name: Download source artifact
         uses: actions/download-artifact@v4
         with:
-          name: source-${{ needs.prepare.outputs.version }}
+          name: source-${{ needs.prepare.outputs.version_tag }}
           path: release/
 
       - name: Create Safari app bundle
-        run: bash build/build-safari-macos.sh "${{ needs.prepare.outputs.version }}"
+        run: bash build/build-safari-macos.sh "${{ needs.prepare.outputs.version_tag }}"
 
       - name: Package Safari ZIP
         run: |
-          echo "Packaging Safari App into ZIP..."
-          (cd release && zip -r -q "weather-extension-safari-v${{ needs.prepare.outputs.version }}.zip" WeatherExtension.app)
-          echo "Created: weather-extension-safari-v${{ needs.prepare.outputs.version }}.zip"
+          B="${{ needs.prepare.outputs.version_base }}"
+          (cd release && zip -r -q "weather-extension-safari-v${B}.zip" WeatherExtension.app)
+          echo "Created: weather-extension-safari-v${B}.zip"
 
       - name: Upload Safari artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-safari-${{ needs.prepare.outputs.version }}
-          path: release/weather-extension-safari-v${{ needs.prepare.outputs.version }}.zip
-          retention-days: 30
+          name: release-safari-${{ needs.prepare.outputs.version_tag }}
+          path: release/weather-extension-safari-v${{ needs.prepare.outputs.version_base }}.zip
+          retention-days: 7
 
   release:
     runs-on: ubuntu-latest
@@ -288,7 +250,6 @@ jobs:
     if: |
       always()
       && needs.prepare.result == 'success'
-      && !contains(needs.*.result, 'failure')
       && !contains(needs.*.result, 'cancelled')
 
     steps:
@@ -298,39 +259,41 @@ jobs:
       - name: Download source artifact
         uses: actions/download-artifact@v4
         with:
-          name: source-${{ needs.prepare.outputs.version }}
+          name: source-${{ needs.prepare.outputs.version_tag }}
           path: .
 
       - name: Download Chromium artifact
         if: ${{ needs.prepare.outputs.has_chromium == 'true' && needs.package-chromium.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-chromium-${{ needs.prepare.outputs.version }}
+          name: release-chromium-${{ needs.prepare.outputs.version_tag }}
           path: release/
 
       - name: Download Firefox artifact
         if: ${{ needs.prepare.outputs.has_firefox == 'true' && needs.package-firefox.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-firefox-${{ needs.prepare.outputs.version }}
+          name: release-firefox-${{ needs.prepare.outputs.version_tag }}
           path: release/
 
       - name: Download Safari artifact
         if: ${{ needs.prepare.outputs.has_safari == 'true' && needs.package-safari.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-safari-${{ needs.prepare.outputs.version }}
+          name: release-safari-${{ needs.prepare.outputs.version_tag }}
           path: .
 
       - name: Move Safari ZIP to release directory
         if: ${{ needs.prepare.outputs.has_safari == 'true' && needs.package-safari.result == 'success' }}
         run: |
-          mv "weather-extension-safari-v${{ needs.prepare.outputs.version }}.zip" release/ 2>/dev/null || true
+          B="${{ needs.prepare.outputs.version_base }}"
+          mv "weather-extension-safari-v${B}.zip" release/ 2>/dev/null || true
 
       - name: Set release flags
         id: release_flags
         run: |
-          case "${{ github.event.inputs.release_type }}" in
+          RELEASE_TYPE="${{ inputs.release_type || 'release' }}"
+          case "${RELEASE_TYPE}" in
             draft)
               echo "draft=true" >> $GITHUB_OUTPUT
               echo "prerelease=false" >> $GITHUB_OUTPUT
@@ -349,31 +312,28 @@ jobs:
         id: release_files
         run: |
           mkdir -p release
-          VERSION="${{ needs.prepare.outputs.version }}"
+          B="${{ needs.prepare.outputs.version_base }}"
           {
-            [ -f "release/weather-extension-chromium-v${VERSION}.zip" ] && echo "release/weather-extension-chromium-v${VERSION}.zip"
-            [ -f "release/weather-extension-firefox-v${VERSION}.xpi" ] && echo "release/weather-extension-firefox-v${VERSION}.xpi"
-            [ -f "release/weather-extension-safari-v${VERSION}.zip" ] && echo "release/weather-extension-safari-v${VERSION}.zip"
+            [ -f "release/weather-extension-chromium-v${B}.zip" ] && echo "release/weather-extension-chromium-v${B}.zip"
+            [ -f "release/weather-extension-firefox-v${B}.xpi" ] && echo "release/weather-extension-firefox-v${B}.xpi"
+            [ -f "release/weather-extension-safari-v${B}.zip" ] && echo "release/weather-extension-safari-v${B}.zip"
           } > release-files.txt
           {
             echo 'files<<EOF'
             cat release-files.txt
             echo 'EOF'
           } >> $GITHUB_OUTPUT
-          echo "Release files:"
-          cat release-files.txt
 
       - name: Generate release notes
         env:
-          RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+          RELEASE_TYPE: ${{ inputs.release_type || 'release' }}
         run: node build/generate-release.mjs
 
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.create_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.prepare.outputs.version }}
-          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || format('Release v{0}', needs.prepare.outputs.version) }}
+          tag_name: v${{ needs.prepare.outputs.version_tag }}
+          name: ${{ inputs.release_name != '' && inputs.release_name || format('v{0}', needs.prepare.outputs.version_tag) }}
           body_path: release/release-notes.md
           files: ${{ steps.release_files.outputs.files }}
           draft: ${{ steps.release_flags.outputs.draft }}
@@ -385,7 +345,7 @@ jobs:
       - name: Release Summary
         if: success()
         run: |
-          echo "Release v${{ needs.prepare.outputs.version }}"
-          echo "Target: ${{ github.event.inputs.target }}"
+          echo "Tag: v${{ needs.prepare.outputs.version_tag }}"
+          echo "Target: ${{ env.TARGET }}"
           echo "Files:"
           ls -1 release/*.zip release/*.xpi 2>/dev/null | sed 's/^/  /'
