@@ -19,5 +19,7 @@
     "lastUpdated":  "Ultima actualizare",
     "humidity":  "Umiditate",
     "wind":  "Vânt",
-    "today":  "Azi"
+    "today":  "Azi",
+    "weather": "Vreme",
+    "appTitle": "Vreme"
 }

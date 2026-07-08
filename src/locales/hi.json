@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "मौसम डेटा लोड हो रहा है...",
     "searchPlaceholder":  "स्थान दर्ज करें...",
     "search":  "खोजें",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "पसंदीदा के रूप में सहेजें",
+    "forecast":  "पूर्वानुमान",
     "searchHint":  "पूर्वानुमान देखने के लिए मौसम खोजें",
-    "favorites":  "",
+    "favorites":  "पसंदीदा",
     "noFavorites":  "कोई पसंदीदा सहेजा नहीं गया",
     "removeFavorite":  "पसंदीदा हटाएं",
     "enterLocation":  "कृपया एक स्थान दर्ज करें।",
@@ -19,5 +19,7 @@
     "lastUpdated":  "अंतिम अपडेट",
     "humidity":  "नमी",
     "wind":  "हवा",
-    "today":  "आज"
+    "today":  "आज",
+    "weather": "मौसम",
+    "appTitle": "मौसम"
 }

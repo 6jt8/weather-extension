@@ -19,5 +19,7 @@
     "lastUpdated":  "Utolsó frissítés",
     "humidity":  "Páratartalom",
     "wind":  "Szél",
-    "today":  "Ma"
+    "today":  "Ma",
+    "weather": "Időjárás",
+    "appTitle": "Időjárás"
 }

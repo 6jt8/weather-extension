@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "날씨 데이터 로딩 중...",
     "searchPlaceholder":  "위치 입력...",
     "search":  "검색",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "즐겨찾기에 저장",
+    "forecast":  "예보",
     "searchHint":  "날씨를 검색하여 예보 보기",
-    "favorites":  "",
+    "favorites":  "즐겨찾기",
     "noFavorites":  "저장된 즐겨찾기 없음",
     "removeFavorite":  "즐겨찾기 삭제",
     "enterLocation":  "위치를 입력하세요.",
@@ -19,5 +19,7 @@
     "lastUpdated":  "마지막 업데이트",
     "humidity":  "습도",
     "wind":  "바람",
-    "today":  "오늘"
+    "today":  "오늘",
+    "weather": "날씨",
+    "appTitle": "날씨"
 }

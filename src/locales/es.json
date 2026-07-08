@@ -19,5 +19,7 @@
     "lastUpdated":  "Última actualización",
     "humidity":  "Humedad",
     "wind":  "Viento",
-    "today":  "Hoy"
+    "today":  "Hoy",
+    "weather": "Clima",
+    "appTitle": "Clima"
 }

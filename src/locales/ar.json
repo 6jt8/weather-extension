@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "جارٍ تحميل بيانات الطقس...",
     "searchPlaceholder":  "أدخل الموقع...",
     "search":  "بحث",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "حفظ كالمفضلة",
+    "forecast":  "التوقعات",
     "searchHint":  "ابحث عن الطقس لرؤية التوقعات",
-    "favorites":  "",
+    "favorites":  "المفضلات",
     "noFavorites":  "لا توجد مفضلات محفوظة",
     "removeFavorite":  "إزالة من المفضلات",
     "enterLocation":  "يرجى إدخال الموقع.",
@@ -19,5 +19,7 @@
     "lastUpdated":  "آخر تحديث",
     "humidity":  "الرطوبة",
     "wind":  "الرياح",
-    "today":  "اليوم"
+    "today":  "اليوم",
+    "weather": "الطقس",
+    "appTitle": "الطقس"
 }

@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "正在加载天气数据...",
     "searchPlaceholder":  "输入地点...",
     "search":  "搜索",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "保存为收藏",
+    "forecast":  "预报",
     "searchHint":  "搜索天气以查看预报",
-    "favorites":  "",
+    "favorites":  "收藏",
     "noFavorites":  "暂无收藏",
     "removeFavorite":  "删除收藏",
     "enterLocation":  "请输入地点。",
@@ -19,5 +19,7 @@
     "lastUpdated":  "最后更新",
     "humidity":  "湿度",
     "wind":  "风",
-    "today":  "今天"
+    "today":  "今天",
+    "weather": "天气",
+    "appTitle": "天气"
 }

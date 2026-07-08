@@ -290,12 +290,6 @@ body {
   opacity: 0.8;
 }
 
-.weather-update {
-  font-size: 0.7rem;
-  opacity: 0.6;
-  margin-top: 12px;
-}
-
 .loading {
   display: flex;
   flex-direction: column;

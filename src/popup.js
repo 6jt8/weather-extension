@@ -205,10 +205,11 @@ async function geocodeLocation(query) {
   }
 }
 
+// reverse geocode lat/lon to {name, country, region} via nominatim.
 async function reverseGeocode(lat, lon) {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
-    const response = await fetch(url, { headers: { "Accept-Language": currentLang } });
+    const response = await fetch(url, { headers: { "Accept-Language": currentLang, "User-Agent": "WeatherExtension/1.0" } });
     const data = await response.json();
     if (!data.address) return null;
     const a = data.address;

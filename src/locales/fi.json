@@ -19,5 +19,7 @@
     "lastUpdated":  "Päivitetty viimeksi",
     "humidity":  "Kosteus",
     "wind":  "Tuuli",
-    "today":  "Tänään"
+    "today":  "Tänään",
+    "weather": "Sää",
+    "appTitle": "Sää"
 }

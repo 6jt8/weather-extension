@@ -9,7 +9,7 @@
 <body>
   <div class="container">
     <header class="header">
-      <h1>Weather</h1>
+      <h1 data-i18n="appTitle">Weather</h1>
       <div class="header-controls">
         <select id="languageSelect" class="language-select" title="Select language">
           <option value="en">EN</option>
@@ -53,9 +53,9 @@
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="weather">Weather</button>
-      <button class="tab-btn" data-tab="forecast">Forecast</button>
-      <button class="tab-btn" data-tab="favorites">Favorites</button>
+      <button class="tab-btn active" data-tab="weather" data-i18n="weather">Weather</button>
+      <button class="tab-btn" data-tab="forecast" data-i18n="forecast">Forecast</button>
+      <button class="tab-btn" data-tab="favorites" data-i18n="favorites">Favorites</button>
     </div>
 
     <div id="weatherTab" class="tab-content active">

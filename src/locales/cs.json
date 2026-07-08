@@ -19,5 +19,7 @@
     "lastUpdated":  "Poslední aktualizace",
     "humidity":  "Vlhkost",
     "wind":  "Vítr",
-    "today":  "Dnes"
+    "today":  "Dnes",
+    "weather": "Počasí",
+    "appTitle": "Počasí"
 }

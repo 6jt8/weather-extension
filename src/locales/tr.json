@@ -19,5 +19,7 @@
   "lastUpdated": "Son güncelleme",
   "humidity": "Nem",
   "wind": "Rüzgar",
-  "today": "Bugün"
+  "today": "Bugün",
+  "weather": "Hava Durumu",
+  "appTitle": "Hava Durumu"
 }

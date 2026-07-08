@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "Загрузка данных о погоде...",
     "searchPlaceholder":  "Введите место...",
     "search":  "Поиск",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "Сохранить в избранное",
+    "forecast":  "Прогноз",
     "searchHint":  "Найдите погоду, чтобы увидеть прогноз",
-    "favorites":  "",
+    "favorites":  "Избранное",
     "noFavorites":  "Нет сохранённых избранных",
     "removeFavorite":  "Удалить из избранного",
     "enterLocation":  "Пожалуйста, введите место.",
@@ -19,5 +19,7 @@
     "lastUpdated":  "Последнее обновление",
     "humidity":  "Влажность",
     "wind":  "Ветер",
-    "today":  "Сегодня"
+    "today":  "Сегодня",
+    "weather": "Погода",
+    "appTitle": "Погода"
 }

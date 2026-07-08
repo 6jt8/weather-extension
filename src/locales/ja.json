@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "天気データを読み込み中...",
     "searchPlaceholder":  "場所を入力...",
     "search":  "検索",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "お気に入りとして保存",
+    "forecast":  "予報",
     "searchHint":  "天気を検索して予報を表示",
-    "favorites":  "",
+    "favorites":  "お気に入り",
     "noFavorites":  "お気に入りは保存されていません",
     "removeFavorite":  "お気に入りを削除",
     "enterLocation":  "場所を入力してください。",
@@ -19,5 +19,7 @@
     "lastUpdated":  "最終更新",
     "humidity":  "湿度",
     "wind":  "風",
-    "today":  "今日"
+    "today":  "今日",
+    "weather": "天気",
+    "appTitle": "天気"
 }
