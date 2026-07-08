@@ -1,0 +1,10 @@
+// config.js — Optional configuration
+// Copy this file to config.js and adjust values as needed.
+// If config.js does not exist, the extension uses defaults.
+
+const CONFIG = {
+  // API endpoints (default: Open-Meteo, no API key required)
+  // weatherApi: "https://api.open-meteo.com/v1",
+  // geocodingApi: "https://geocoding-api.open-meteo.com/v1",
+  // reverseGeocodingApi: "https://nominatim.openstreetmap.org",
+};
