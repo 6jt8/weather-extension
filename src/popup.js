@@ -1,9 +1,11 @@
+// ── supported languages ──
 const SUPPORTED_LANGS = [
-  "en", "de", "fr", "es", "it", "pt", "nl", "pl", "ru", "uk",
-  "ja", "ko", "zh", "ar", "hi", "tr", "sv", "no", "da", "fi",
+  "en", "de", "fr", "es", "it", "pt", "nl", "no", "pl", "ru", "uk",
+  "ja", "ko", "zh", "ar", "hi", "tr", "sv", "da", "fi",
   "el", "cs", "ro", "hu",
 ];
 
+// ── app state ──
 let translations = {};
 let currentUnit = "celsius";
 let currentLang = "en";
@@ -11,6 +13,7 @@ let currentLocation = "";
 let lastWeatherData = null;
 let lastCoords = { lat: null, lon: null, name: null, country: null, region: null };
 
+// ── dom refs ──
 const weatherDisplay = document.getElementById("weatherDisplay");
 const forecastDisplay = document.getElementById("forecastDisplay");
 const searchBtn = document.getElementById("searchBtn");
@@ -20,6 +23,9 @@ const favoritesList = document.getElementById("favoritesList");
 const unitToggle = document.getElementById("unitToggle");
 const languageSelect = document.getElementById("languageSelect");
 
+// ── i18n ──
+
+// fetch and cache a locale json file. falls back to english on error.
 async function loadLanguage(lang) {
   try {
     const response = await fetch(`locales/${lang}.json`);
@@ -31,16 +37,19 @@ async function loadLanguage(lang) {
   }
 }
 
+// translate a key. returns the key itself if not found.
 function t(key) {
   return translations[key] || key;
 }
 
+// sanitize user-provided text before innerhtml assignment.
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
 
+// translate all elements with data-i18n attributes + dynamic labels.
 function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     el.textContent = t(el.getAttribute("data-i18n"));
@@ -50,6 +59,7 @@ function applyStaticTranslations() {
   document.documentElement.lang = currentLang;
 }
 
+// ── inline svg weather icons (wmo weather code to icon) ──
 const W_SUNNY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="14" fill="#f59e0b"/><g stroke="#f59e0b" stroke-width="3" stroke-linecap="round"><line x1="32" y1="6" x2="32" y2="14"/><line x1="32" y1="50" x2="32" y2="58"/><line x1="6" y1="32" x2="14" y2="32"/><line x1="50" y1="32" x2="58" y2="32"/><line x1="13" y1="13" x2="19" y2="19"/><line x1="45" y1="45" x2="51" y2="51"/><line x1="13" y1="51" x2="19" y2="45"/><line x1="45" y1="19" x2="51" y2="13"/></g></svg>';
 const W_PARTLY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><circle cx="24" cy="24" r="10" fill="#f59e0b"/><path d="M44 48H28c-4.4 0-8-3.6-8-8s3.6-8 8-8c.6 0 1.2.1 1.8.2C31.2 28.6 35.2 26 40 26c6.6 0 12 5.4 12 12s-5.4 10-12 10z" fill="#e2e8f0"/></svg>';
 const W_OVERCAST = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><ellipse cx="24" cy="44" rx="20" ry="12" fill="#94a3b8"/><ellipse cx="40" cy="48" rx="18" ry="10" fill="#cbd5e1"/><ellipse cx="32" cy="32" rx="24" ry="14" fill="#e2e8f0"/></svg>';
@@ -59,6 +69,7 @@ const W_HEAVY_RAIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64
 const W_SNOW = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><ellipse cx="32" cy="24" rx="22" ry="14" fill="#94a3b8"/><g fill="#fff"><circle cx="20" cy="42" r="3"/><circle cx="32" cy="46" r="3"/><circle cx="44" cy="42" r="3"/><circle cx="26" cy="54" r="3"/><circle cx="38" cy="54" r="3"/></g></svg>';
 const W_STORM = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><ellipse cx="32" cy="22" rx="24" ry="14" fill="#334155"/><polygon points="34,28 26,44 32,44 28,58 40,40 34,40" fill="#fbbf24"/><g stroke="#3b82f6" stroke-width="2" stroke-linecap="round"><line x1="20" y1="46" x2="16" y2="58"/><line x1="44" y1="46" x2="40" y2="58"/></g></svg>';
 
+// map a wmo weather code to an icon svg string.
 function getWeatherIcon(code) {
   if (code === 0 || code === 1) return W_SUNNY;
   if (code === 2) return W_PARTLY;
@@ -72,6 +83,7 @@ function getWeatherIcon(code) {
   return W_SUNNY;
 }
 
+// map a wmo weather code to a human-readable description.
 function getWeatherDescription(code) {
   const codes = {
     0: "Clear sky",
@@ -106,6 +118,8 @@ function getWeatherDescription(code) {
   return codes[code] || "Unknown";
 }
 
+// ── helpers ──
+
 function cToF(c) {
   return (c * 9/5) + 32;
 }
@@ -128,11 +142,15 @@ function showError(message) {
   weatherDisplay.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
 }
 
+// format an iso date string to a localized short date e.g. "mon, jan 5".
 function formatDate(dateStr) {
   const date = new Date(dateStr);
   return date.toLocaleDateString(currentLang, { weekday: "short", day: "numeric", month: "short" });
 }
 
+// ── api calls ──
+
+// main entry: geocode the location (or parse coords), fetch weather, render.
 async function fetchWeather(location) {
   if (!location || !location.trim()) {
     showError(t("enterLocation"));
@@ -193,6 +211,7 @@ async function fetchWeather(location) {
   }
 }
 
+// forward geocode a city name to {latitude, longitude, name, country, admin1}.
 async function geocodeLocation(query) {
   try {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=${currentLang}`;
@@ -223,6 +242,9 @@ async function reverseGeocode(lat, lon) {
   }
 }
 
+// ── rendering ──
+
+// render the current weather card (temperature, details, icon).
 function renderWeather(data) {
   const { current, name, country, region } = data;
   const temp = currentUnit === "fahrenheit" ? cToF(current.temperature_2m) : current.temperature_2m;
@@ -247,6 +269,7 @@ function renderWeather(data) {
   `;
 }
 
+// render the 7-day forecast list. each day is clickable to open detail modal.
 function renderForecast(data) {
   const daily = data.daily;
   if (!daily || !daily.time || daily.time.length < 2) {
@@ -295,6 +318,7 @@ function renderForecast(data) {
   });
 }
 
+// show the modal with high/low temps for a specific day.
 function showDayDetail(date, code, maxC, minC) {
   const max = currentUnit === "fahrenheit" ? cToF(maxC) : maxC;
   const min = currentUnit === "fahrenheit" ? cToF(minC) : minC;
@@ -324,6 +348,9 @@ function closeModal() {
   document.getElementById("detailModal").classList.remove("active");
 }
 
+// ── favorites (chrome.storage.sync) ──
+
+// load and render the favorites list from storage.
 function loadFavorites() {
   chrome.storage.sync.get(["favorites"], (result) => {
     const favorites = result.favorites || [];
@@ -377,6 +404,7 @@ function loadFavorites() {
   });
 }
 
+// remove a favorite from storage, then re-render the list.
 function removeFavorite(favToRemove) {
   chrome.storage.sync.get(["favorites"], (result) => {
     let favorites = result.favorites || [];
@@ -389,6 +417,7 @@ function removeFavorite(favToRemove) {
   });
 }
 
+// save the current location as a favorite (no duplicates).
 function saveFavorite() {
   if (!currentLocation || !lastCoords.name) return;
 
@@ -408,6 +437,9 @@ function saveFavorite() {
   });
 }
 
+// ── controls ──
+
+// toggle between celsius and fahrenheit, persist to storage.
 function toggleUnit() {
   currentUnit = currentUnit === "celsius" ? "fahrenheit" : "celsius";
   chrome.storage.sync.set({ unit: currentUnit });
@@ -422,6 +454,7 @@ function updateUnitToggle() {
   unitToggle.textContent = currentUnit === "celsius" ? "°C" : "°F";
 }
 
+// switch between weather / forecast / favorites tabs.
 function switchTab(tabName) {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tabName);
@@ -431,6 +464,9 @@ function switchTab(tabName) {
   });
 }
 
+// ── init ──
+
+// load saved unit + language from storage and apply them.
 async function loadSettings() {
   const result = await new Promise((resolve) => {
     chrome.storage.sync.get(["unit", "lang"], resolve);
@@ -451,6 +487,7 @@ async function loadSettings() {
   updateUnitToggle();
 }
 
+// switch language, re-translate ui, refresh weather text.
 async function changeLanguage(lang) {
   currentLang = lang;
   chrome.storage.sync.set({ lang: currentLang });
@@ -463,6 +500,7 @@ async function changeLanguage(lang) {
   }
 }
 
+// update the "berlin, germany" label under the search bar.
 function updateCurrentLocationDisplay() {
   const locationName = document.getElementById("currentLocationName");
   if (lastCoords && lastCoords.name) {
@@ -480,6 +518,7 @@ function clearInput() {
   locationInput.focus();
 }
 
+// bootstrap: load settings, init favorites, detect location, wire events.
 document.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
   loadFavorites();
@@ -494,6 +533,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("clearInputBtn").addEventListener("click", clearInput);
 });
 
+// attempt browser geolocation. falls back to berlin on failure.
 function detectLocation() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -511,6 +551,8 @@ function detectLocation() {
     fetchWeather("Berlin");
   }
 }
+
+// ── event wiring ──
 
 searchBtn.addEventListener("click", () => {
   const location = locationInput.value;
