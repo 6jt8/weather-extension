@@ -19,5 +19,7 @@
     "lastUpdated":  "Sidst opdateret",
     "humidity":  "Luftfugtighed",
     "wind":  "Vind",
-    "today":  "I dag"
+    "today":  "I dag",
+    "weather": "Vejr",
+    "appTitle": "Vejr"
 }

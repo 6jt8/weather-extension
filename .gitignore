@@ -4,7 +4,6 @@ release/
 src/config.js
 *.zip
 .DS_Store
-release/weather_extension
 .kilo/
 .local/
 .vscode/

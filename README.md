@@ -124,15 +124,20 @@ See [Package Structure](#package-structure) above for details on the output arti
 
 ## Release
 
-Manual via **GitHub Actions** → [Release Build](../../actions/workflows/release.yml) → **Run workflow**
+Releases are triggered by pushing a git tag matching `v*.*.*`:
 
-| Input | Description | Example |
-|:---|:---|:---|
-| `version` | Semver version (X.Y.Z or vX.Y.Z) | `1.2.0` |
-| `target` | Target platform | `chromium` / `firefox` / `safari` / `all` |
-| `create_release` | Create GitHub release | `true` |
-| `release_type` | Release type | `release` / `prerelease` / `draft` |
-| `release_name` | Optional release name | `Summer Update` |
+```bash
+# tag a release
+git tag v1.0.0 && git push origin v1.0.0
+
+# or with a prerelease suffix (package files still use base version)
+git tag v1.0.1-beta && git push origin v1.0.1-beta
+```
+
+the tag version is used for the github release only. the actual extension version
+is set in `package.json` and `src/manifest.json` — update those locally before tagging.
+
+advanced: manual release via **GitHub Actions** → [Release Build](../../actions/workflows/release.yml)
 
 ### Build matrix
 

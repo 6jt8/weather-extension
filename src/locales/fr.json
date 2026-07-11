@@ -1,9 +1,9 @@
-﻿{
+{
     "loading":  "Chargement des données météo...",
     "searchPlaceholder":  "Entrer un lieu...",
     "search":  "Rechercher",
     "saveFavorite":  "Enregistrer comme favori",
-    "forecast":  "Prvisions",
+    "forecast":  "Prévisions",
     "searchHint":  "Rechercher la météo pour voir les prévisions",
     "favorites":  "Favoris",
     "noFavorites":  "Aucun favori enregistré",
@@ -19,5 +19,7 @@
     "lastUpdated":  "Dernière mise à jour",
     "humidity":  "Humidité",
     "wind":  "Vent",
-    "today":  "Aujourd\u0027hui"
+    "today":  "Aujourd'hui",
+    "weather": "Météo",
+    "appTitle": "Météo"
 }

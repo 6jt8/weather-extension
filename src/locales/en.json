@@ -19,5 +19,7 @@
   "lastUpdated": "Last updated",
   "humidity": "Humidity",
   "wind": "Wind",
-  "today": "Today"
+  "today": "Today",
+  "weather": "Weather",
+  "appTitle": "Weather"
 }

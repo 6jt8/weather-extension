@@ -1,4 +1,4 @@
-﻿{
+{
     "loading":  "Laddar väderdata...",
     "searchPlaceholder":  "Ange plats...",
     "search":  "Sök",
@@ -19,5 +19,7 @@
     "lastUpdated":  "Senast uppdaterad",
     "humidity":  "Luftfuktighet",
     "wind":  "Vind",
-    "today":  "Idag"
+    "today":  "Idag",
+    "weather": "Väder",
+    "appTitle": "Väder"
 }

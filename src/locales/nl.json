@@ -19,5 +19,7 @@
     "lastUpdated":  "Laatst bijgewerkt",
     "humidity":  "Luchtvochtigheid",
     "wind":  "Wind",
-    "today":  "Vandaag"
+    "today":  "Vandaag",
+    "weather": "Weer",
+    "appTitle": "Weer"
 }

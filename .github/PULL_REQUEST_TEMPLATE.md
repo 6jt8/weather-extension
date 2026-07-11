@@ -24,7 +24,6 @@ Brief description of the changes.
 - [ ] Tested in Firefox
 - [ ] Tested in Safari (macOS)
 - [ ] All existing translations still display correctly
-- [ ] Linting passes: `npm run lint` (if available)
 
 ## Related Issues
 

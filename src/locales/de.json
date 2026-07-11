@@ -19,5 +19,7 @@
   "lastUpdated": "Letztes Update",
   "humidity": "Luftfeuchtigkeit",
   "wind": "Wind",
-  "today": "Heute"
+  "today": "Heute",
+  "weather": "Wetter",
+  "appTitle": "Wetter"
 }

@@ -1,11 +1,11 @@
-﻿{
+{
     "loading":  "Φόρτωση δεδομένων καιρού...",
     "searchPlaceholder":  "Εισάγετε τοποθεσία...",
     "search":  "Αναζήτηση",
-    "saveFavorite":  "",
-    "forecast":  "",
+    "saveFavorite":  "Αποθήκευση ως αγαπημένο",
+    "forecast":  "Πρόβλεψη",
     "searchHint":  "Αναζητήστε τον καιρό για να δείτε την πρόβλεψη",
-    "favorites":  "",
+    "favorites":  "Αγαπημένα",
     "noFavorites":  "Δεν υπάρχουν αποθηκευμένα αγαπημένα",
     "removeFavorite":  "Αφαίρεση αγαπημένου",
     "enterLocation":  "Εισάγετε μια τοποθεσία.",
@@ -19,5 +19,7 @@
     "lastUpdated":  "Τελευταία ενημέρωση",
     "humidity":  "Υγρασία",
     "wind":  "Άνεμος",
-    "today":  "Σήμερα"
+    "today":  "Σήμερα",
+    "weather": "Καιρός",
+    "appTitle": "Καιρός"
 }

@@ -1,9 +1,9 @@
-﻿{
+{
     "loading":  "Laster værdata...",
     "searchPlaceholder":  "Skriv inn sted...",
     "search":  "Søk",
     "saveFavorite":  "Lagre som favoritt",
-    "forecast":  "Vrmelding",
+    "forecast":  "Værmelding",
     "searchHint":  "Søk etter vær for å se melding",
     "favorites":  "Favoritter",
     "noFavorites":  "Ingen favoritter lagret",
@@ -19,5 +19,7 @@
     "lastUpdated":  "Sist oppdatert",
     "humidity":  "Luftfuktighet",
     "wind":  "Vind",
-    "today":  "I dag"
+    "today":  "I dag",
+    "weather": "Vær",
+    "appTitle": "Vær"
 }
