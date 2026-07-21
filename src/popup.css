@@ -85,11 +85,15 @@ body {
 .search-box {
   display: flex;
   gap: 8px;
+}
+
+.search-input-wrapper {
+  flex: 1;
   position: relative;
 }
 
-.search-box input {
-  flex: 1;
+.search-input-wrapper input {
+  width: 100%;
   padding: 10px 36px 10px 14px;
   border: none;
   border-radius: 8px;
@@ -102,7 +106,7 @@ body {
 
 .clear-input-btn {
   position: absolute;
-  right: 80px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
