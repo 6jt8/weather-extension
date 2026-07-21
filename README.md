@@ -98,8 +98,6 @@ cd weather-extension
 
 No API key required - uses [Open-Meteo](https://open-meteo.com/) (free, no signup).
 
-Load the `src/` folder as an unpacked extension in your browser for development.
-
 ### Build release packages locally
 
 ```bash
