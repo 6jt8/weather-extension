@@ -83,39 +83,8 @@ function getWeatherIcon(code) {
   return W_SUNNY;
 }
 
-// map a wmo weather code to a human-readable description.
 function getWeatherDescription(code) {
-  const codes = {
-    0: "Clear sky",
-    1: "Mainly clear",
-    2: "Partly cloudy",
-    3: "Overcast",
-    45: "Fog",
-    48: "Depositing rime fog",
-    51: "Light drizzle",
-    53: "Moderate drizzle",
-    55: "Dense drizzle",
-    56: "Light freezing drizzle",
-    57: "Dense freezing drizzle",
-    61: "Slight rain",
-    63: "Moderate rain",
-    65: "Heavy rain",
-    66: "Light freezing rain",
-    67: "Heavy freezing rain",
-    71: "Slight snow",
-    73: "Moderate snow",
-    75: "Heavy snow",
-    77: "Snow grains",
-    80: "Slight rain showers",
-    81: "Moderate rain showers",
-    82: "Violent rain showers",
-    85: "Slight snow showers",
-    86: "Heavy snow showers",
-    95: "Thunderstorm",
-    96: "Thunderstorm with slight hail",
-    99: "Thunderstorm with heavy hail",
-  };
-  return codes[code] || "Unknown";
+  return t("weather_" + code) || "Unknown";
 }
 
 // ── helpers ──
@@ -487,17 +456,47 @@ async function loadSettings() {
   updateUnitToggle();
 }
 
-// switch language, re-translate ui, refresh weather text.
+// switch language, re-translate ui, refresh weather text and location names.
 async function changeLanguage(lang) {
   currentLang = lang;
   chrome.storage.sync.set({ lang: currentLang });
   await loadLanguage(currentLang);
   applyStaticTranslations();
   loadFavorites();
+
+  if (lastWeatherData && currentLocation) {
+    const isCoords = /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(currentLocation);
+    let geo = null;
+    if (isCoords) {
+      const parts = currentLocation.split(",");
+      geo = await reverseGeocode(parseFloat(parts[0].trim()), parseFloat(parts[1].trim()));
+      if (geo) {
+        geo.latitude = parseFloat(parts[0].trim());
+        geo.longitude = parseFloat(parts[1].trim());
+        geo.admin1 = geo.region;
+      }
+    } else {
+      geo = await geocodeLocation(currentLocation);
+    }
+    if (geo) {
+      lastCoords = {
+        lat: geo.latitude,
+        lon: geo.longitude,
+        name: geo.name,
+        country: geo.country || "",
+        region: geo.admin1 || geo.region || ""
+      };
+      lastWeatherData.name = geo.name;
+      lastWeatherData.country = geo.country || "";
+      lastWeatherData.region = geo.admin1 || geo.region || "";
+    }
+  }
+
   if (lastWeatherData) {
     renderWeather(lastWeatherData);
     renderForecast(lastWeatherData);
   }
+  updateCurrentLocationDisplay();
 }
 
 // update the "berlin, germany" label under the search bar.
